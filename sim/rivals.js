@@ -26,8 +26,8 @@ function horizontalDistance (self, bot) {
   return Math.hypot(bot.entity.position.x - self.entity.position.x, bot.entity.position.z - self.entity.position.z)
 }
 
-function inReach (self, bot) {
-  return reachDistance(self.entity.position, bot.entity.position) <= PHYS.MAX_REACH
+function inReach (self, bot, reach = PHYS.MAX_REACH) {
+  return reachDistance(self.entity.position, bot.entity.position) <= reach
 }
 
 /** Mineflayer yaw/pitch (yaw 0 looks to -Z, positive pitch looks up) from this rival's eye to the bot's body center. */
@@ -121,14 +121,63 @@ function kiter () {
   }
 }
 
+// The owner of the bot as the live fights showed him: always on top of the bot with the sprint down,
+// swings the moment the sword is charged, w-taps after each hit, strafes, jumps for a crit about a third
+// of the times and jump-resets half of the hits. His ~155 ms ping (and the bot's) lets the server accept
+// his hits from about 3.3 blocks as the bot measures them, so this rival reaches that far.
+const PRESSURE_REACH = 3.3
+function presionador (rng) {
+  let lastAttack = NEVER
+  let lastHurt = NEVER
+  let side = 1
+  let nextFlip = null
+  let critJump = false
+  return {
+    reach: PRESSURE_REACH,
+    decide (self, bot, tick) {
+      if (nextFlip === null || tick >= nextFlip) {
+        side = rng() < 0.5 ? 1 : -1
+        nextFlip = tick + 15 + Math.floor(rng() * 16)
+      }
+      const distance = horizontalDistance(self, bot)
+      const sinceAttack = tick - lastAttack
+      const grounded = self.entity.onGround
+      // A crit: jump a few ticks before the charge, swing on the way down
+      if (grounded) critJump = false
+      let jump = false
+      if (grounded && sinceAttack === 8 && distance < 4.2 && rng() < 0.35) {
+        jump = true
+        critJump = true
+      }
+      // Jump reset on the bot's hit, half of the times (only a hit that can land)
+      const incoming = bot.attackQueued > 0 && tick - lastHurt >= PHYS.INVULNERABLE_TICKS && grounded
+      if (incoming && rng() < 0.5) jump = true
+      const charged = sinceAttack >= CHARGED_TICKS
+      const falling = self.entity.velocity.y < 0
+      const attack = charged && inReach(self, bot, PRESSURE_REACH) && (!critJump || falling)
+      if (attack) lastAttack = tick
+      const forward = distance > 2.0
+      // W-tap: the sprint is let go the tick after a hit; no sprint in a crit jump
+      const sprint = forward && tick !== lastAttack + 1 && !critJump
+      return {
+        controls: { ...blankControls(), forward, sprint, jump, right: side > 0, left: side < 0 },
+        attack,
+        look: aimAtBot(self, bot)
+      }
+    },
+    onHurt (tick) { lastHurt = tick }
+  }
+}
+
 const KINDS = {
   tanque: () => tanque(),
   jumpResetter: (rng) => jumpResetter(rng),
   strafer: (rng) => strafer(rng),
-  kiter: () => kiter()
+  kiter: () => kiter(),
+  presionador: (rng) => presionador(rng)
 }
 
-/** Builds a scripted rival of `kind` ('tanque' | 'jumpResetter' | 'strafer' | 'kiter') fed by `rng`. */
+/** Builds a scripted rival of `kind` ('tanque' | 'jumpResetter' | 'strafer' | 'kiter' | 'presionador') fed by `rng`. */
 function createRival (kind, rng) {
   if (!Object.prototype.hasOwnProperty.call(KINDS, kind)) {
     throw new Error(`unknown rival kind: ${kind} (expected ${Object.keys(KINDS).join(', ')})`)

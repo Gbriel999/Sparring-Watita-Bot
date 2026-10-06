@@ -18,6 +18,31 @@ test('crits land when the expert goes for them', () => {
   assert.ok(m.critsLanded / m.critAttempts >= 0.7, `${m.critsLanded}/${m.critAttempts}`)
 })
 
+// The live fights against the owner: a rusher with ~155 ms of ping, seen every 2 ticks and late. The
+// engine lost them 7-0 before the rival's ground state, the air hits and the hit-and-run read existed.
+test('with server lag the expert beats a rusher that hits from 3.3 (the owner as the live fights showed him)', () => {
+  let dealt = 0
+  let taken = 0
+  for (const seed of [1, 2, 3, 4]) {
+    const m = duel('experto', 'presionador', seed, { rivalFeed: true })
+    dealt += m.damageDealt
+    taken += m.damageTaken
+  }
+  assert.ok(dealt > taken * 1.05, `dealt ${dealt.toFixed(0)} taken ${taken.toFixed(0)}`)
+})
+
+test('with server lag the expert reads a hit-and-run rival and hits it in the air before it leaves', () => {
+  let dealt = 0
+  let taken = 0
+  for (const seed of [1, 2, 3, 4]) {
+    const m = duel('experto', 'kiter', seed, { rivalFeed: true })
+    dealt += m.damageDealt
+    taken += m.damageTaken
+  }
+  // The engine without the read did 0.28 of the damage it took
+  assert.ok(dealt / taken >= 0.55, `dealt/taken ${(dealt / taken).toFixed(2)}`)
+})
+
 test('sprint hits are real: the w-tap always re-arms the sprint', () => {
   for (const level of ['normal', 'experto']) {
     const m = duel(level, 'strafer', 2)
@@ -167,6 +192,30 @@ test('a hurt far from the rival (fall, fire, lava on 1.20+) does not teach its r
   arena.rival.entity.position.set(bot.x, 0, bot.z + 3)
   engine.onSelfHurt({ byTarget: true })
   assert.strictEqual(engine.model.hitsTaken, before + 1, 'three blocks away: its hit')
+})
+
+test('the rival crits come from the server crit effect, whichever arrives first', () => {
+  const arena = new Arena({ seed: 1, rival: 'kiter', level: 'experto', ticks: 60, engineFactory })
+  arena.run()
+  const engine = arena.engine
+  const bot = arena.self.entity.position
+  arena.rival.entity.position.set(bot.x, 0, bot.z + 3)
+  const crits = engine.model.crits
+  // Effect after the hurt (the vanilla order)
+  engine.onSelfHurt({ byTarget: true })
+  engine.onCritTaken()
+  assert.strictEqual(engine.model.crits, crits + 1)
+  // Effect first, the hurt in the same tick
+  engine.tick += 20
+  engine.onCritTaken()
+  engine.onSelfHurt({ byTarget: true })
+  assert.strictEqual(engine.model.crits, crits + 2)
+  // An effect with no hit of the rival near it counts nothing
+  engine.tick += 20
+  engine.onCritTaken()
+  engine.tick += 20
+  engine.onSelfHurt({ byTarget: true })
+  assert.strictEqual(engine.model.crits, crits + 2)
 })
 
 test("the engine's jump reset: a jump pressed in onHurt is the next move and keeps 0.6 of the push", () => {

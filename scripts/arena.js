@@ -5,6 +5,8 @@
 //   npm run arena                      seed 1, 2400 ticks (two minutes), infinite floor
 //   node scripts/arena.js --seed 7     another seed
 //   node scripts/arena.js --plataforma 4   on a platform of blocks -4..4 (edge falls count)
+//   node scripts/arena.js --sin-lag        the bot sees the rival at once (by default its updates
+//                                          come every 2 ticks and late, like on a server)
 
 const { runDuel } = require('../sim/arena')
 const { RIVAL_KINDS } = require('../sim/rivals')
@@ -21,6 +23,7 @@ const seed = option('--seed', 1)
 const half = option('--plataforma', null)
 const platform = half === null ? null : { minX: -half, maxX: half, minZ: -half, maxZ: half }
 const ticks = 2400
+const rivalFeed = !process.argv.includes('--sin-lag')
 
 const engineFactory = (bot, hooks) => {
   const engine = new CombatEngine(bot, {
@@ -37,7 +40,7 @@ const header = ['nivel', 'rival', 'golpes', 'críticos', 'sprint reales', 'dist.
 const rows = []
 for (const level of Object.keys(LEVELS)) {
   for (const rival of RIVAL_KINDS) {
-    const m = runDuel({ level, rival, seed, ticks, platform, engineFactory })
+    const m = runDuel({ level, rival, seed, ticks, platform, engineFactory, rivalFeed })
     rows.push([
       level,
       rival,
@@ -56,7 +59,7 @@ for (const level of Object.keys(LEVELS)) {
 
 const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column].length)))
 const line = (cells) => cells.map((cell, column) => column < 2 ? cell.padEnd(widths[column]) : cell.padStart(widths[column])).join('  ')
-console.log(`Arena: semilla ${seed}, ${ticks} ticks, ${platform ? `plataforma ${-half}..${half}` : 'suelo infinito'}`)
+console.log(`Arena: semilla ${seed}, ${ticks} ticks, ${platform ? `plataforma ${-half}..${half}` : 'suelo infinito'}, ${rivalFeed ? 'rival con lag de servidor' : 'rival sin lag'}`)
 console.log(line(header))
 console.log(widths.map((width) => '-'.repeat(width)).join('  '))
 let previous = null

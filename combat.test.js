@@ -77,3 +77,22 @@ test('every swing is reported to the attack listener with its kind', () => {
   engine.swingAir()
   assert.deepStrictEqual(kinds, ['air'])
 })
+
+test('in sight is judged like the server: from the last sent eye, not the newer one', () => {
+  // The rival stands 3.4 blocks away on +Z (its box starts at 3.1). The bot's last packet put it at
+  // z 0.25 (2.85 to the box); it has since stepped back to z -0.2 (3.3 to the box), not sent yet.
+  const target = { position: new Vec3(0, 0, 3.4), width: 0.6, height: 1.8 }
+  const bot = { entity: { position: new Vec3(0, 0, -0.2), yaw: Math.PI, pitch: 0 }, setControlState () {} }
+  const engine = new c.CombatEngine(bot, { getTarget: () => target, shieldAllowed: () => true, paused: () => false })
+  engine.sentPos = new Vec3(0, 0, 0.25)
+  engine.prevSentPos = new Vec3(0, 0, 0.25)
+  assert.strictEqual(engine.inSight(target), true)
+  // Looking away, it is not in sight from anywhere
+  bot.entity.yaw = 0
+  assert.strictEqual(engine.inSight(target), false)
+  // Out of reach from the sent eye: not in sight even if the newer eye is closer
+  engine.sentPos = new Vec3(0, 0, -0.3)
+  bot.entity.position = new Vec3(0, 0, 0.3)
+  bot.entity.yaw = Math.PI
+  assert.strictEqual(engine.inSight(target), false)
+})

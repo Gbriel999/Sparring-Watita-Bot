@@ -11,7 +11,9 @@ const mineflayer = require('mineflayer')
 const { CombatEngine, LEVELS } = require('./combat')
 const { RivalMemory } = require('./brain/memory')
 const { installKnockbackFix } = require('./knockback')
+const { installRivalGroundFix } = require('./rival-ground')
 const { startPanelServer } = require('./panel-server')
+const { createInputLink } = require('./input-link')
 const { InputLog, FrameMeter } = require('./panel-telemetry')
 const { publicConfig, applyConfigPatch } = require('./panel-config')
 const { CombatStats } = require('./combat-stats')
@@ -461,6 +463,14 @@ function createBot () {
     if (owner && entity.id === owner.id) guarded('swing del rival', () => engine.onTargetSwing())
   })
 
+  // The server's crit effect on the bot: the rival's hit was a crit (its crits are learned from it)
+  bot.on('entityCriticalEffect', (entity) => {
+    if (entity && bot.entity && entity.id === bot.entity.id) guarded('crítico recibido', () => engine.onCritTaken())
+  })
+
+  // The rival's onGround from the server (mineflayer leaves it at true forever), see rival-ground.js
+  installRivalGroundFix(bot)
+
   // Real knockback on 1.21.9+ (mineflayer divides it by 8000), see knockback.js
   let knockbacks = 0
   let lastKnockback = 0
@@ -667,7 +677,8 @@ function panelState () {
       ? { onGround: bot.entity.onGround, pitch: Math.round(bot.entity.pitch * 100) / 100, hurtAt: lastHurtAt }
       : null,
     skin: skinState(),
-    rival: engine ? engine.rivalSummary() : null
+    rival: engine ? engine.rivalSummary() : null,
+    inputLink: inputLinkStatus
   }
 }
 
@@ -716,6 +727,34 @@ panel.server.on('listening', () => {
   log(`Panel en este PC: ${panel.urls.local}`)
   if (panel.urls.lan) log(`Panel en el móvil (misma Wi-Fi): ${panel.urls.lan}`)
 })
+
+// The owner's inputs from the Watita Sparring Link mod on this PC (its own folder, see README): only on
+// 127.0.0.1, only during a fight, and only to learn his habits (the engine never reacts to a frame)
+const INPUTS_PORT = Number.isInteger(config.inputsPuerto) ? config.inputsPuerto : 3211
+let inputLink = null
+let inputLinkStatus = INPUTS_PORT === 0 ? { state: 'apagado' } : { state: 'esperando' }
+if (INPUTS_PORT !== 0) {
+  createInputLink({
+    port: INPUTS_PORT,
+    owner: () => config.dueno,
+    botName: () => (bot && bot.username) || config.cuenta,
+    onFrame: (frame) => {
+      if (engine && engine.mode === 'pelea') guarded('tus teclas', () => engine.model.observeInputFrame(frame))
+    },
+    onStatus: (next) => { inputLinkStatus = next },
+    log
+  }).then((link) => {
+    inputLink = link
+    log(`Tus teclas: esperando el mod en 127.0.0.1:${link.port}`)
+  }).catch((err) => {
+    inputLinkStatus = { state: 'error', reason: err.message }
+    log(`Tus teclas: no pude abrir el puerto ${INPUTS_PORT} (${err.message})`)
+  })
+}
+// The mod sends only while the bot fights its owner
+setInterval(() => {
+  if (inputLink) inputLink.setFight(Boolean(engine && engine.mode === 'pelea' && status === 'conectado'))
+}, 250)
 
 // The bot's setup over time, to match each lab sample with how its rival was set (peleas.jsonl)
 const fightLog = createFightLog(path.join(__dirname, 'peleas.jsonl'))

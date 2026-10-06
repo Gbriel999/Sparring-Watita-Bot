@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "watita.sparringlink.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["AttackMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

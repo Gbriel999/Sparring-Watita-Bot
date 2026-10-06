@@ -73,6 +73,8 @@ export interface RivalSummary {
   blockRate: number | null
   aggression: number | null
   preferredDistance: number | null
+  /** Blocks the rival backs off by itself right after its swing (hit and run) */
+  hitAndRun: number | null
   confidence: {
     reach: number
     rhythm: number
@@ -82,7 +84,37 @@ export interface RivalSummary {
     weakSide: number
     crit: number
     block: number
+    run: number
   }
+  /** Where each replaceable trait came from: the owner's own keys (the mod) or the server estimate */
+  sources?: Partial<Record<'spamRate' | 'swingInterval' | 'jumpResetRate' | 'strafeLength', 'inputs' | 'servidor'>>
+  /** What the owner's keys say (brain/inputs.js); rates 0..1, ticks, blocks */
+  inputs?: InputHabits
+}
+
+export interface InputHabits {
+  samples: number
+  spamRate: number | null
+  swingInterval: number | null
+  hitCharge: number | null
+  critAttemptRate: number | null
+  hitDistance: number | null
+  wtapRate: number | null
+  wtapTicks: number | null
+  stapRate: number | null
+  jumpResetRate: number | null
+  jumpResetTicks: number | null
+  strafeLength: number | null
+  confidence: Record<'spamRate' | 'swingInterval' | 'hitCharge' | 'critAttemptRate' | 'hitDistance' | 'wtapRate'
+    | 'wtapTicks' | 'stapRate' | 'jumpResetRate' | 'jumpResetTicks' | 'strafeLength', number>
+}
+
+/** The link with the Watita Sparring Link mod (input-link.js) */
+export interface InputLinkStatus {
+  state: 'esperando' | 'conectado' | 'rechazado' | 'apagado' | 'error'
+  player?: string
+  reason?: string
+  badLines?: number
 }
 
 export interface RivalReadout {
@@ -122,6 +154,7 @@ export interface BotState {
   skin: Skin | null
   /** null while the bot is offline or runs an older backend */
   rival: RivalReadout | null
+  inputLink?: InputLinkStatus
 }
 
 export interface CombatEvent {

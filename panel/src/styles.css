@@ -1280,6 +1280,50 @@ p {
   color: var(--text-faint);
 }
 
+/* Learned from the owner's own keys (the mod), not estimated from the server */
+.rival-keys {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius);
+  background: rgb(61 220 151 / 0.12);
+  color: var(--mint);
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* The link with the mod: mint when connected, red when refused, faint while waiting */
+.rival-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.rival-link-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.rival-link.is-conectado {
+  color: var(--mint);
+}
+
+.rival-link.is-rechazado,
+.rival-link.is-error {
+  color: var(--red);
+}
+
 /* Five slanted segments: how sure the bot is about the trait */
 .rival-conf {
   display: inline-flex;

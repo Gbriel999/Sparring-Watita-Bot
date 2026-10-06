@@ -15,7 +15,7 @@ test('a rival is remembered by name, ignoring case, and counts fights', () => {
   const file = tempFile()
   const memory = new RivalMemory(file)
   const m = memory.load('Gvvbriel')
-  for (const d of [2.6, 2.9, 3.0]) m.observeHitTaken({ tick: 1, distance: d, targetFalling: false })
+  for (const d of [2.6, 2.9, 3.0]) m.observeHitTaken({ tick: 1, distance: d })
   assert.strictEqual(memory.save('Gvvbriel', m, { fightEnded: true }), true)
   const again = new RivalMemory(file)
   assert.strictEqual(again.info('gvvbriel').fights, 1)

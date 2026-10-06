@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "watita_sparring_link",
+  "version": "${version}",
+  "name": "Watita Sparring Link",
+  "description": "Envía tus teclas al bot de sparring de WatitaAC (solo a 127.0.0.1 y solo durante !pelea) para que aprenda tus hábitos.",
+  "authors": ["gbriel999"],
+  "environment": "client",
+  "entrypoints": {
+    "client": ["watita.sparringlink.SparringLinkMod"]
+  },
+  "mixins": ["watita-sparring-link.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

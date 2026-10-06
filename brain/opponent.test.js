@@ -8,7 +8,7 @@ const tickBase = { targetOnGround: true, targetBlocking: false, botPos: { x: 0, 
 test('reach is learned from the distance of the hits the rival lands', () => {
   const m = new OpponentModel()
   assert.strictEqual(m.summary().reach, null)
-  for (const d of [2.6, 2.9, 3.0, 2.8]) m.observeHitTaken({ tick: 1, distance: d, targetFalling: false })
+  for (const d of [2.6, 2.9, 3.0, 2.8]) m.observeHitTaken({ tick: 1, distance: d })
   assert.strictEqual(m.summary().reach.median, 2.9)
   assert.ok(m.summary().confidence.reach > 0)
 })
@@ -116,7 +116,10 @@ test('the weak side is the bot strafe direction where the rival aims worse', () 
 
 test('a saved model comes back as a prior with half the weight', () => {
   const m = new OpponentModel()
-  for (const d of [2.6, 2.9, 3.0, 2.8, 2.7, 2.9]) m.observeHitTaken({ tick: 1, distance: d, targetFalling: true })
+  for (const d of [2.6, 2.9, 3.0, 2.8, 2.7, 2.9]) {
+    m.observeHitTaken({ tick: 1, distance: d })
+    m.observeCritTaken()
+  }
   const back = OpponentModel.fromJSON(JSON.parse(JSON.stringify(m.toJSON())))
   assert.strictEqual(back.summary().critRate, 1)
   assert.ok(back.summary().confidence.reach < m.summary().confidence.reach)
@@ -129,4 +132,102 @@ test('a rival that only gets the knockback hop (vy 0.4) is not a jump resetter',
   for (let i = 0; i < 4; i++) feedFlight(m, i * 100)
   assert.strictEqual(m.summary().jumpResetRate, 0)
   assert.ok(Math.abs(m.summary().kbFactor - 1) < 0.02, `kbFactor ${m.summary().kbFactor}`)
+})
+
+test('crits come from the server crit effect and never outnumber the hits taken', () => {
+  const m = new OpponentModel()
+  for (let i = 0; i < 6; i++) m.observeHitTaken({ tick: i, distance: 2.8 })
+  for (let i = 0; i < 10; i++) m.observeCritTaken()
+  assert.strictEqual(m.summary().critRate, 1)
+  const half = new OpponentModel()
+  for (let i = 0; i < 6; i++) half.observeHitTaken({ tick: i, distance: 2.8 })
+  for (let i = 0; i < 3; i++) half.observeCritTaken()
+  assert.strictEqual(half.summary().critRate, 0.5)
+})
+
+/** Swings of a rival at z 3 (the bot at the origin), each followed by 8 ticks moving at `vz` per tick. */
+function feedSwingsThenMove (m, vz, swings = 5) {
+  let tick = 1000
+  for (let i = 0; i < swings; i++) {
+    m.observeSwing(tick)
+    let z = 3
+    for (let k = 1; k <= 12; k++) {
+      if (k > 1 && k <= 9) z += vz
+      m.observeTick({ ...tickBase, tick: tick + k, distance: z, targetPos: { x: 0, y: 0, z }, targetVel: { x: 0, y: 0, z: vz } })
+    }
+    tick += 20
+  }
+}
+
+test('hit and run: how far the rival itself backs off in the ticks after its swing', () => {
+  const runner = new OpponentModel()
+  assert.strictEqual(runner.summary().hitAndRun, null)
+  feedSwingsThenMove(runner, 0.2)
+  assert.ok(Math.abs(runner.summary().hitAndRun - 1.6) < 1e-9, `runner ${runner.summary().hitAndRun}`)
+  const presser = new OpponentModel()
+  feedSwingsThenMove(presser, -0.25)
+  assert.strictEqual(presser.summary().hitAndRun, 0)
+  const back = OpponentModel.fromJSON(JSON.parse(JSON.stringify(runner.toJSON())))
+  assert.ok(back.summary().hitAndRun > 1)
+})
+
+test('a back-off pushed by the bot\'s own hit is not hit and run', () => {
+  const m = new OpponentModel()
+  let tick = 1000
+  for (let i = 0; i < 5; i++) {
+    m.observeSwing(tick)
+    // The bot hits back two ticks later: the rival flies away from its knockback, not by itself
+    m.observeHitLanded({ tick: tick + 2, sprintHit: true, targetPos: { x: 0, y: 0, z: 3 }, targetOnGround: true })
+    let z = 3
+    for (let k = 1; k <= 12; k++) {
+      if (k > 2 && k <= 9) z += 0.3
+      m.observeTick({ ...tickBase, tick: tick + k, distance: z, targetPos: { x: 0, y: 0, z }, targetVel: { x: 0, y: 0, z: 0.3 } })
+    }
+    tick += 40
+  }
+  assert.strictEqual(m.summary().hitAndRun, null)
+})
+
+/** Owner frames from the mod: `n` charged clicks 13 ticks apart, a third of them spammed, each after a hit taken and jumped. */
+function feedOwnerInputs (m, n = 12) {
+  let seq = 1
+  const frame = (extra) => m.observeInputFrame({ t: 'tick', seq: seq++, k: 0, gnd: true, vy: 0, hurt: false, dist: 3, aim: true, atk: [], ...extra })
+  for (let i = 0; i < n; i++) {
+    frame({ atk: [{ c: i % 3 === 0 ? 0.4 : 1, gnd: true, vy: 0, spr: false, aim: true, dist: 2.9 }] })
+    frame({ hurt: true })
+    frame({ k: 16 })
+    for (let j = 0; j < 10; j++) frame({})
+  }
+}
+
+test('the owner inputs replace an estimated trait when they are surer, and say so', () => {
+  const m = new OpponentModel()
+  feedOwnerInputs(m)
+  const s = m.summary()
+  assert.ok(Math.abs(s.spamRate - 4 / 12) < 1e-9, `spamRate ${s.spamRate}`)
+  assert.strictEqual(s.swingInterval, 13)
+  assert.strictEqual(s.jumpResetRate, 1)
+  assert.strictEqual(s.sources.spamRate, 'inputs')
+  assert.strictEqual(s.sources.jumpResetRate, 'inputs')
+  assert.strictEqual(s.sources.strafeLength, 'servidor')
+  assert.strictEqual(s.confidence.rhythm, s.inputs.confidence.spamRate)
+  assert.strictEqual(s.inputs.spamRate, s.spamRate)
+})
+
+test('without inputs every trait stays the server estimate', () => {
+  const m = new OpponentModel()
+  let tick = 100
+  for (let i = 0; i < 6; i++) { m.observeSwing(tick); tick += 13 }
+  const s = m.summary()
+  assert.strictEqual(s.swingInterval, 13)
+  assert.strictEqual(s.sources.swingInterval, 'servidor')
+  assert.strictEqual(s.inputs.spamRate, null)
+})
+
+test('the owner inputs are saved with the model', () => {
+  const m = new OpponentModel()
+  feedOwnerInputs(m)
+  const back = OpponentModel.fromJSON(JSON.parse(JSON.stringify(m.toJSON())), { asPrior: false })
+  assert.strictEqual(back.summary().inputs.spamRate, m.summary().inputs.spamRate)
+  assert.strictEqual(back.summary().sources.jumpResetRate, 'inputs')
 })

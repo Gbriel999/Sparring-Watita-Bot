@@ -6,3 +6,8 @@ bot.log
 panel/dist/
 peleas.jsonl
 rivales.json
+
+# The Watita Sparring Link mod (mod/): build outputs and game logs; its gradle wrapper and the jar to install are kept
+mod/build/
+mod/.gradle/
+mod/logs/

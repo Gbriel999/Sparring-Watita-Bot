@@ -72,7 +72,7 @@ export default function App () {
         <div className="area-combat"><CombatStage state={state} lastEvent={lastEvent} token={token} /></div>
         <div className="area-meter"><FrameMeter state={state} /></div>
         <div className="area-inputs"><InputDisplay state={state} /></div>
-        <div className="area-rival"><RivalReadout rival={state.rival} /></div>
+        <div className="area-rival"><RivalReadout rival={state.rival} link={state.inputLink ?? null} /></div>
         <div className="area-gear"><Equipment state={state} /></div>
         <div className="area-log"><LogPanel logs={logs} send={send} /></div>
         <div className="area-config"><ConfigPanel token={token} onNotice={notify} onReconnect={() => call('/api/reconnect')} /></div>

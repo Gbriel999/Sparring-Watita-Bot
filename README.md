@@ -12,6 +12,7 @@ Usa [mineflayer](https://github.com/PrismarineJS/mineflayer) con un **motor de c
 - Si no tiene espada ni hacha te avisa en vez de pegar a puño (que parece 1.8).
 - **Escudo** entre golpes cuando le vas a pegar, y **hacha** si te cubres con el tuyo.
 - Arregla un fallo de mineflayer con 1.21.9+: el knockback le llegaba 8000 veces más pequeño.
+- Arregla otro fallo de mineflayer: nunca actualiza si el rival está en el suelo. El bot lo lee de los paquetes de movimiento del servidor (`rival-ground.js`), y así ve tus saltos, tus caídas y tu knockback.
 
 ## 1. Instalar (una sola vez)
 
@@ -82,12 +83,34 @@ Escríbelos en el chat del juego o en la terminal del bot:
 | `!reiniciar` | Pone a cero los contadores de la sesión del panel |
 | `!ayuda` | Lista de comandos |
 
-**El bot aprende.** Mientras pelea te mide: a qué distancia te alcanza, si haces críticos, el ritmo de tus golpes, si saltas al recibir (jump reset), cuánto retrocedes, hacia qué lado giras, qué tal te cubres con el escudo y a qué distancia te gusta pelear. Con eso decide cómo jugarte (más cerca, más lejos, cuándo esquivar), y cuanto más nivel, más caso le hace a lo aprendido. Todo se guarda por jugador en `rivales.json` (no se sube a git), así que la próxima sesión ya te conoce; el panel muestra qué sabe de ti y qué plan sigue. `!olvidar` lo borra. Para ver cómo juega sin entrar al servidor, `npm run arena` enfrenta al bot contra rivales simulados.
+**El bot aprende.** Mientras pelea te mide: a qué distancia te alcanza, cuántos de tus golpes son críticos (con el efecto de crítico que manda el servidor), el ritmo de tus golpes, si saltas al recibir (jump reset), cuánto retrocedes, si te vas justo después de pegar, hacia qué lado giras, qué tal te cubres con el escudo y a qué distancia te gusta pelear. Si te vas tras pegar, te pega en el aire sin esperar al crítico. Con eso decide cómo jugarte (más cerca, más lejos, cuándo esquivar), y cuanto más nivel, más caso le hace a lo aprendido. Todo se guarda por jugador en `rivales.json` (no se sube a git), así que la próxima sesión ya te conoce; el panel muestra qué sabe de ti y qué plan sigue. `!olvidar` lo borra. Para ver cómo juega sin entrar al servidor, `npm run arena` enfrenta al bot contra rivales simulados (con el lag de un servidor; `--sin-lag` lo quita). Uno de ellos, `presionador`, imita cómo peleas tú: siempre encima con sprint, w-tap, algún crítico y jump reset, y 3,3 bloques de alcance efectivo por el ping.
 
 Además, solo y sin comandos, el bot:
 - se equipa al entrar, al reaparecer y al cambiar de servidor;
 - cada 3 s revisa si le diste algo mejor o si le falta el tótem;
 - mientras pelea no toca su mano principal, para poder cambiar al hacha contra tu escudo.
+
+## 4b. Tus teclas (mod opcional)
+
+Con el mod **Watita Sparring Link**, tu Minecraft le cuenta al bot lo que haces en cada tick mientras peleáis, y el bot aprende tus hábitos con datos exactos en vez de adivinarlos por tus movimientos con lag. Aprende:
+- en qué momento de la carga pegas (si spameas o haces hit select);
+- tus w-tap y s-tap;
+- cuánto duran tus strafes;
+- tu jump reset y cuánto tardas en hacerlo;
+- cuántos de tus golpes intentan ser críticos.
+
+En el panel, esos rasgos salen marcados como **tus teclas**.
+
+- **Solo aprende.** El bot nunca reacciona a tus teclas en el momento: para pelear solo usa lo que le muestra el servidor, como un rival de verdad.
+- **Solo en tu PC.** El mod se conecta a `127.0.0.1` y solo envía mientras el bot está en `!pelea`. Nunca envía con un menú abierto, y solo manda los controles del juego (movimiento, salto, sprint, ataque, usar), nunca lo que escribes.
+
+**Instalar:**
+1. Copia `mod/WatitaSparringLink-26.2.jar` a la carpeta de mods de Fabric 26.2. Es para Minecraft 26.2 con Fabric API, y necesita Java 25.
+   - **Lunar Client:** `%USERPROFILE%\.lunarclient\profiles\<tu perfil>\mods\fabric-26.2`, junto a tu Fabric API.
+   - **Launcher oficial con Fabric:** `.minecraft/mods`.
+2. Arranca el bot y entra al servidor con tu cuenta. Al hacer `!pelea` verás en pantalla "Watita: el bot está aprendiendo de tus teclas", y el panel dirá **Tus teclas: conectado**.
+
+El puerto es el 3211 en los dos lados. Si lo cambias, cámbialo a la vez en `config.json` del bot (`"inputsPuerto": 3211`; `0` lo apaga) y en `watita-sparring-link.json`, dentro de la carpeta `config` de tu juego (el mod lo crea la primera vez).
 
 ## 5. Con el laboratorio
 

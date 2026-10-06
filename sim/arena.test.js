@@ -229,7 +229,8 @@ test('an attack is a crit only when falling, charged and not sprinting', () => {
   const rising = hitAt(8, false)
   assert.strictEqual(rising.hitsLanded, 1)
   assert.strictEqual(rising.critsLanded, 0)
-  assert.strictEqual(rising.critAttempts, 1)
+  assert.strictEqual(rising.critAttempts, 0)
+  assert.strictEqual(rising.airHits, 1)
   near(rising.damageDealt, 7)
   // Sprint flag up since the first tick: no crit even while falling
   const sprinting = hitAt(9, true)
@@ -401,7 +402,7 @@ test('a jump follows the arc of the physics module and lands on the platform', (
 
 test('createRival rejects unknown kinds and every kind is deterministic', () => {
   assert.throws(() => createRival('nope', seeded(1)), /unknown rival kind/)
-  for (const kind of ['tanque', 'jumpResetter', 'strafer', 'kiter']) {
+  for (const kind of ['tanque', 'jumpResetter', 'strafer', 'kiter', 'presionador']) {
     const run = () => new Arena({ seed: 5, rival: kind, ticks: 300, engineFactory: scripted(() => {}) }).run()
     assert.deepStrictEqual(run(), run(), kind)
   }
@@ -433,4 +434,19 @@ test('the rival is judged fairly: its swing and its view of the bot use where th
   back.step()
   assert.ok(back.self.entity.position.z < -0.3, 'the bot moved away on tick 2')
   assert.strictEqual(back.metrics().hitsTaken, 1)
+})
+
+test('a rival script may hit from farther than 3 (the extra reach its lag gives it on a server)', () => {
+  // The bot's box starts 3.2 from the rival's eye: out of vanilla reach, inside a lagged 3.3
+  const swing = (reach) => ({
+    reach,
+    decide: (self, bot, tick) => ({ controls: {}, attack: tick === 1, look: { yaw: 0, pitch: 0 } }),
+    onHurt () {}
+  })
+  const vanilla = arenaWith(() => {}, { rivalZ: 3.5, rival: swing(undefined) })
+  vanilla.step()
+  assert.strictEqual(vanilla.metrics().hitsTaken, 0)
+  const lagged = arenaWith(() => {}, { rivalZ: 3.5, rival: swing(3.3) })
+  lagged.step()
+  assert.strictEqual(lagged.metrics().hitsTaken, 1)
 })

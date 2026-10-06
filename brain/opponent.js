@@ -7,9 +7,42 @@
 // medians, so confidence and the minimums keep working after a halved reload (fromJSON).
 
 const { knockbackDisplacement } = require('./physics')
+const { isNum, pushBounded, clamp, median, p90, rate, confidence, halve, readArray, readInt, halvePart } = require('./stats')
+const { InputHabits } = require('./inputs')
 
-// Latest values kept per array
-const MAX_SAMPLES = 60
+// Traits the owner's own inputs (brain/inputs.js) can replace, with the confidence key each one uses here.
+// When two traits share a key, the first one listed sets it (rhythm follows the spam rate, which planTrade reads)
+const INPUT_TRAITS = Object.freeze({
+  spamRate: 'rhythm',
+  swingInterval: 'rhythm',
+  jumpResetRate: 'jumpReset',
+  strafeLength: 'strafe'
+})
+
+/**
+ * The summary with each replaceable trait taken from the owner's inputs when they know it at least as surely
+ * as the server estimate; `sources` tells where every one came from, `inputs` carries all the input habits.
+ */
+function mergeInputs (summary, inputs) {
+  const sources = {}
+  const confidence = { ...summary.confidence }
+  const keysSet = new Set()
+  const merged = { ...summary }
+  for (const [trait, key] of Object.entries(INPUT_TRAITS)) {
+    const fromInputs = inputs[trait]
+    const sure = inputs.confidence[trait]
+    if (fromInputs !== null && sure >= (summary[trait] === null ? 0 : summary.confidence[key])) {
+      merged[trait] = fromInputs
+      if (!keysSet.has(key)) confidence[key] = sure
+      keysSet.add(key)
+      sources[trait] = 'inputs'
+    } else {
+      sources[trait] = 'servidor'
+    }
+  }
+  return { ...merged, confidence, sources, inputs }
+}
+
 // Swing gaps above this many ticks are pauses, not rhythm
 const MAX_SWING_GAP = 40
 // Swing gaps below this many ticks count as click spam
@@ -32,6 +65,11 @@ const KB_FACTOR_MAX = 2
 const ORBIT_LATERAL_MIN = 0.05
 // Distance change per tick above which the rival counts as closing in or backing off
 const CLOSING_MIN = 0.05
+// Ticks after its swing over which the rival's own retreat is followed (hit and run); its positions
+// arrive late and every 2 ticks, so the window is longer than a typical 6-tick back-off
+const RUN_WINDOW = 10
+// A swing this soon after the bot's hit landed is still in that knockback's flight
+const RUN_KB_TICKS = 12
 // Distance under which shield use is measured
 const BLOCK_RANGE = 4
 // Distance up to which the preferred spacing is measured
@@ -49,76 +87,9 @@ const MIN_CRIT = 3
 const MIN_BLOCK = 40
 const MIN_AGGRESSION = 40
 const MIN_PREFERRED = 40
-// confidence = min(1, samples / (CONFIDENCE_FACTOR * minimum))
-const CONFIDENCE_FACTOR = 5
+const MIN_RUN = 4
 
 const ZERO_VEL = Object.freeze({ x: 0, y: 0, z: 0 })
-
-function isNum (v) {
-  return typeof v === 'number' && Number.isFinite(v)
-}
-
-function pushBounded (arr, value) {
-  arr.push(value)
-  if (arr.length > MAX_SAMPLES) arr.splice(0, arr.length - MAX_SAMPLES)
-}
-
-function clamp (v, min, max) {
-  return Math.min(max, Math.max(min, v))
-}
-
-// Median: sorted[floor(n / 2)] (upper middle for even n); null when empty.
-function median (values) {
-  if (values.length === 0) return null
-  const sorted = values.slice().sort((a, b) => a - b)
-  return sorted[Math.floor(sorted.length / 2)]
-}
-
-// 90th percentile: sorted[min(n - 1, floor(0.9 * n))]; null when empty.
-function p90 (values) {
-  if (values.length === 0) return null
-  const sorted = values.slice().sort((a, b) => a - b)
-  return sorted[Math.min(sorted.length - 1, Math.floor(0.9 * sorted.length))]
-}
-
-// Ratio of two counters, capped at 1 in case a hand-edited file holds inconsistent counters.
-function rate (part, total) {
-  return Math.min(1, part / total)
-}
-
-function confidence (samples, minimum) {
-  return Math.min(1, samples / (CONFIDENCE_FACTOR * minimum))
-}
-
-// --- JSON sanitizers (the memory file may be edited by hand or corrupted) ---
-
-// Half of n with Math.floor. A trait that had reached its minimum sample count keeps at least that
-// minimum, so a prior that was valid stays valid after the reload (minKeep 0 = plain halving).
-// prior false keeps n whole (a read-only look at the remembered model).
-function halve (n, minKeep = 0, prior = true) {
-  if (!prior) return n
-  const half = Math.floor(n / 2)
-  return n >= minKeep ? Math.max(half, minKeep) : half
-}
-
-// Latest numbers of a saved array (only its most recent half, see halve).
-function readArray (value, minKeep = 0, prior = true) {
-  if (!Array.isArray(value)) return []
-  const nums = value.filter(isNum).slice(-MAX_SAMPLES)
-  return nums.slice(nums.length - halve(nums.length, minKeep, prior))
-}
-
-// Non-negative integer from the file, or 0.
-function readInt (value) {
-  return isNum(value) && value > 0 ? Math.floor(value) : 0
-}
-
-// Part of a halved total (crits of hitsTaken...): halved the same way, so the rate survives.
-function halvePart (part, total, newTotal) {
-  if (total <= 0) return 0
-  const scaled = newTotal === Math.floor(total / 2) ? Math.floor(part / 2) : Math.floor(part * newTotal / total)
-  return Math.min(newTotal, scaled)
-}
 
 // Per-side aim error accumulator { sum, count }; the sum shrinks with the count so the mean survives.
 function readAim (value, prior = true) {
@@ -161,7 +132,19 @@ class OpponentModel {
     this.distances = []
     this.closeRangeTicks = 0
 
+    // What the owner's own client says he does (the Watita Sparring Link mod)
+    this.inputs = new InputHabits()
+
+    // Farthest the rival itself got from where it swung, moving away from the bot, in the RUN_WINDOW
+    // ticks after each swing
+    this.runAfterSwing = []
+    this.runCount = 0
+
     // Per-fight state, never persisted
+    this._runOrigin = null
+    this._runPeak = 0
+    this._runSkip = false
+    this._lastLandedTick = null
     this._lastSwingTick = null
     this._prevDistance = null
     this._pendingHit = null
@@ -174,6 +157,7 @@ class OpponentModel {
     const vel = targetVel || ZERO_VEL
 
     this._trackKnockback(tick, targetPos)
+    this._trackRun(tick, targetPos, botPos)
 
     if (isNum(distance)) {
       // closing > 0: the rival is getting closer
@@ -206,6 +190,28 @@ class OpponentModel {
       const side = botStrafe === 'left' ? this.aimLeft : this.aimRight
       side.sum += Math.abs(targetAimError)
       side.count++
+    }
+  }
+
+  // Hit and run: how far the rival itself moves from where it swung, along the line away from the bot
+  // at that moment (not the distance, which the knockback of its hit on the bot also opens); the
+  // farthest point of the window is the back-off.
+  _trackRun (tick, targetPos, botPos) {
+    if (this._lastSwingTick === null || this._runSkip || !targetPos || !botPos) return
+    const since = tick - this._lastSwingTick
+    if (since < 1 || since > RUN_WINDOW) return
+    if (!this._runOrigin) {
+      const rx = targetPos.x - botPos.x
+      const rz = targetPos.z - botPos.z
+      const length = Math.hypot(rx, rz)
+      if (length < 1e-6) return
+      this._runOrigin = { x: targetPos.x, z: targetPos.z, ax: rx / length, az: rz / length }
+    }
+    const o = this._runOrigin
+    this._runPeak = Math.max(this._runPeak, (targetPos.x - o.x) * o.ax + (targetPos.z - o.z) * o.az)
+    if (since === RUN_WINDOW) {
+      pushBounded(this.runAfterSwing, this._runPeak)
+      this.runCount++
     }
   }
 
@@ -269,6 +275,11 @@ class OpponentModel {
     if (jumpReset) this.jumpResets++
   }
 
+  // One tick of the owner's inputs from his mod (input-link.js).
+  observeInputFrame (frame) {
+    this.inputs.observeFrame(frame)
+  }
+
   observeSwing (tick) {
     if (this._lastSwingTick !== null) {
       const gap = tick - this._lastSwingTick
@@ -280,18 +291,28 @@ class OpponentModel {
       }
     }
     this._lastSwingTick = tick
+    this._runOrigin = null
+    this._runPeak = 0
+    // Its own back-off cannot be told from the flight of the bot's knockback
+    this._runSkip = this._lastLandedTick !== null && tick - this._lastLandedTick < RUN_KB_TICKS
   }
 
-  // The rival landed a hit on the bot: where reach and crits are learned.
-  observeHitTaken ({ tick, distance, targetFalling }) {
+  // The rival landed a hit on the bot: where its reach is learned.
+  observeHitTaken ({ tick, distance }) {
     this.hitsTaken++
     if (isNum(distance)) pushBounded(this.reach, distance)
-    if (targetFalling) this.crits++
+  }
+
+  // The server showed the crit effect on the bot: that hit was a crit. Never more crits than hits.
+  observeCritTaken () {
+    if (this.crits < this.hitsTaken) this.crits++
   }
 
   // The bot landed a hit on the rival (the damage event): the knockback measurement waits for the
   // first position update that shows the flight (see _trackKnockback).
   observeHitLanded ({ tick, sprintHit, targetPos, targetOnGround }) {
+    this._lastLandedTick = tick
+    this._runSkip = true
     if (!targetPos) return
     this._pendingHit = {
       tick,
@@ -328,7 +349,7 @@ class OpponentModel {
     }
 
     const hasKb = this.kbCount >= MIN_KB
-    return {
+    return mergeInputs({
       samples: this.ticks,
       reach: this.hitsTaken >= MIN_REACH && this.reach.length > 0
         ? { median: median(this.reach), p90: p90(this.reach) }
@@ -344,6 +365,7 @@ class OpponentModel {
       blockRate: this.nearTicks >= MIN_BLOCK ? rate(this.blockTicks, this.nearTicks) : null,
       aggression: this.moveTicks >= MIN_AGGRESSION ? rate(this.closeTicks, this.moveTicks) : null,
       preferredDistance: this.closeRangeTicks >= MIN_PREFERRED ? median(this.distances) : null,
+      hitAndRun: this.runCount >= MIN_RUN && this.runAfterSwing.length > 0 ? median(this.runAfterSwing) : null,
       confidence: {
         reach: confidence(this.hitsTaken, MIN_REACH),
         rhythm: confidence(this.swingCount, MIN_RHYTHM),
@@ -352,9 +374,10 @@ class OpponentModel {
         strafe: confidence(orbitCount, MIN_ORBIT),
         weakSide: confidence(Math.min(this.aimLeft.count, this.aimRight.count), MIN_WEAK_SIDE),
         crit: confidence(this.hitsTaken, MIN_CRIT),
-        block: confidence(this.nearTicks, MIN_BLOCK)
+        block: confidence(this.nearTicks, MIN_BLOCK),
+        run: confidence(this.runCount, MIN_RUN)
       }
-    }
+    }, this.inputs.summary())
   }
 
   // Plain JSON (numbers, arrays, objects); per-fight state is not saved.
@@ -381,7 +404,10 @@ class OpponentModel {
       closeTicks: this.closeTicks,
       moveTicks: this.moveTicks,
       distances: this.distances.slice(),
-      closeRangeTicks: this.closeRangeTicks
+      closeRangeTicks: this.closeRangeTicks,
+      runAfterSwing: this.runAfterSwing.slice(),
+      runCount: this.runCount,
+      inputs: this.inputs.toJSON()
     }
   }
 
@@ -421,6 +447,9 @@ class OpponentModel {
     m.moveTicks = halve(readInt(j.moveTicks), 0, asPrior)
     m.distances = readArray(j.distances, 0, asPrior)
     m.closeRangeTicks = halve(readInt(j.closeRangeTicks), 0, asPrior)
+    m.runCount = halve(readInt(j.runCount), MIN_RUN, asPrior)
+    m.runAfterSwing = readArray(j.runAfterSwing, MIN_RUN, asPrior)
+    m.inputs = InputHabits.fromJSON(j.inputs, { asPrior })
     return m
   }
 }

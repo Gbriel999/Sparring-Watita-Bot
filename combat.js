@@ -26,6 +26,14 @@ const CHASE_WAIT = 8
 const WAIT_MAX = 20
 // Ticks of the knockback flight after a hit taken (vy 0.4 keeps a player airborne about 11 ticks)
 const KB_FLIGHT_TICKS = 12
+// The crit effect and the hurt of the same rival hit arrive together: at most this many ticks apart
+const CRIT_PAIR_TICKS = 1
+// The current eye only has to look at the rival's box, not reach it (see inSight)
+const LOOK_RANGE = 6
+// Milliseconds per game tick
+const TICK_MS = 50
+// Closer than this to the end of the reach, the aim goes to the point of the box level with the eye
+const EDGE_AIM_MARGIN = 0.4
 // The server sees each move one tick after the client made it (mineflayer moves, then emits
 // physicsTick, then sends the position): crit timing and reach are judged on that older state
 const SERVER_LAG_TICKS = 1
@@ -92,25 +100,25 @@ const LEVELS = {
   facil: {
     reactionMs: [220, 320], turnFraction: [0.25, 0.4], maxTurnDeg: 25, jitterDeg: 1.2, missChance: 0.12,
     extraCooldown: [1, 4], critChance: 0.35, wtapChance: 0.4, stapChance: 0.2, jumpResetChance: 0.15,
-    shieldChance: 0.15, dodgeChance: 0.15, leadTicks: [0, 1], spacingChance: 0.4,
+    shieldChance: 0.15, dodgeChance: 0.15, leadTicks: [0, 1], predictAim: 0, spacingChance: 0.4,
     modelWeight: 0.15, planNoise: 2, predictKnockback: false, hitDistance: 2.6, holdMargin: 0.2, dodgeOnReady: 0.15
   },
   normal: {
     reactionMs: [150, 240], turnFraction: [0.35, 0.55], maxTurnDeg: 35, jitterDeg: 0.8, missChance: 0.06,
     extraCooldown: [0, 2], critChance: 0.6, wtapChance: 0.7, stapChance: 0.35, jumpResetChance: 0.4,
-    shieldChance: 0.3, dodgeChance: 0.3, leadTicks: [1, 2], spacingChance: 0.7,
+    shieldChance: 0.3, dodgeChance: 0.3, leadTicks: [1, 2], predictAim: 0.3, spacingChance: 0.7,
     modelWeight: 0.5, planNoise: 1, predictKnockback: true, hitDistance: 2.75, holdMargin: 0.3, dodgeOnReady: 0.35
   },
   dificil: {
     reactionMs: [110, 170], turnFraction: [0.45, 0.7], maxTurnDeg: 45, jitterDeg: 0.5, missChance: 0.025,
     extraCooldown: [0, 1], critChance: 0.85, wtapChance: 0.9, stapChance: 0.5, jumpResetChance: 0.7,
-    shieldChance: 0.45, dodgeChance: 0.45, leadTicks: [2, 3], spacingChance: 0.9,
+    shieldChance: 0.45, dodgeChance: 0.45, leadTicks: [2, 3], predictAim: 0.7, spacingChance: 0.9,
     modelWeight: 0.8, planNoise: 0, predictKnockback: true, hitDistance: 2.85, holdMargin: 0.35, dodgeOnReady: 0.55
   },
   experto: {
     reactionMs: [90, 130], turnFraction: [0.5, 0.75], maxTurnDeg: 55, jitterDeg: 0.4, missChance: 0.015,
     extraCooldown: [0, 0], critChance: 0.9, wtapChance: 1, stapChance: 0.5, jumpResetChance: 0.85,
-    shieldChance: 0.6, dodgeChance: 0.55, leadTicks: [2, 3], spacingChance: 1,
+    shieldChance: 0.6, dodgeChance: 0.55, leadTicks: [2, 3], predictAim: 1, spacingChance: 1,
     modelWeight: 1, planNoise: 0, predictKnockback: true, hitDistance: 2.92, holdMargin: 0.35, dodgeOnReady: 0.7
   }
 }
@@ -305,6 +313,9 @@ class CombatEngine {
     this.lastHit = null
     this.lastTargetHurtTick = -100
     this.lastSelfHurtTick = -100
+    // A rival hit counted by the model, and a crit effect still waiting for its hit (see onCritTaken)
+    this.lastHitTakenTick = -100
+    this.pendingCritTick = null
     // Sprint as the server sees it: it only counts again after the key was released and pressed
     this.sprintOn = false
     this.sprintPrimed = false
@@ -553,16 +564,30 @@ class CombatEngine {
       const held = this.heldForRivalSwing()
       const apart = Math.hypot(target.position.x - held.x, target.position.z - held.z)
       if (apart <= RIVAL_HIT_RANGE) {
-        const vel = this.targetVelocity()
-        this.model.observeHitTaken({
-          tick: this.tick,
-          distance: reachBetween(target.position, held),
-          targetFalling: !target.onGround && vel.y < 0
-        })
+        this.model.observeHitTaken({ tick: this.tick, distance: reachBetween(target.position, held) })
+        this.lastHitTakenTick = this.tick
+        if (this.pendingCritTick !== null && this.tick - this.pendingCritTick <= CRIT_PAIR_TICKS) {
+          this.model.observeCritTaken()
+        }
+        this.pendingCritTick = null
       }
     }
     this.comboAgainst++
     this.comboFor = 0
+  }
+
+  /**
+   * The server showed the crit effect on the bot (entity_animation 4, sent with the rival's crit). It
+   * comes right after the hurt in vanilla; if it ever comes first it waits a tick for its hit.
+   */
+  onCritTaken () {
+    if (this.mode !== 'pelea') return
+    if (this.tick - this.lastHitTakenTick <= CRIT_PAIR_TICKS) {
+      this.model.observeCritTaken()
+      this.lastHitTakenTick = -100
+    } else {
+      this.pendingCritTick = this.tick
+    }
   }
 
   /**
@@ -824,11 +849,18 @@ class CombatEngine {
         until: this.tick + 10 + Math.floor(this.rng() * 20)
       }
     }
-    // What it saw a reaction time ago, pushed forward along the target's motion (tracking)
+    // What it saw a reaction time ago, pushed forward along the target's motion (tracking). A good
+    // player follows a moving rival by its motion, not by where it was: the higher levels also carry
+    // the reaction time forward (predictAim), so the crosshair is on the rival when the swing goes
     const seen = this.history.at(now - this.reactionMs) || target.position
-    const lead = this.targetVelocity().scaled(this.aimOffset.lead || 0)
+    const leadTicks = (this.aimOffset.lead || 0) + (s.predictAim || 0) * this.reactionMs / TICK_MS
+    const lead = this.targetVelocity().scaled(leadTicks)
     const height = target.height || 1.8
-    const point = seen.plus(lead).offset(this.aimOffset.x, height * this.aimOffset.y, this.aimOffset.z)
+    // At the edge of the reach the closest point of the box is level with the eye: aim there
+    const eyeLevel = (view ? view.pos.y : this.bot.entity.position.y) + EYE_HEIGHT - seen.y
+    const far = view && reachBetween(view.pos, target.position, target.width || 0.6, height) > REACH - EDGE_AIM_MARGIN
+    const aimY = far ? clamp(eyeLevel, height * 0.15, height * 0.9) : height * this.aimOffset.y
+    const point = seen.plus(lead).offset(this.aimOffset.x, aimY, this.aimOffset.z)
     // Between the eye the server knows and the current one: the swing must cross the box from both
     const here = this.bot.entity.position
     const from = view ? view.pos.plus(here).scaled(0.5) : here
@@ -842,15 +874,17 @@ class CombatEngine {
   }
 
   /**
-   * The crosshair is on the target's box within reach right now, both from the eye the server knows
-   * (what it validates the swing against) and from the current eye (what the client sees).
+   * The crosshair is on the target's box within reach, measured like the server does: from the eye of
+   * the last position packet (a vanilla client also attacks before its move of the tick). The current
+   * eye only has to look at the box at all; requiring reach from it too threw away every hit made
+   * while stepping back, which the server would have accepted.
    */
   inSight (target) {
     const e = this.bot.entity
     const box = entityBox(target.position, target.width || 0.6, target.height || 1.8)
     const sentEye = this.serverView().pos.offset(0, EYE_HEIGHT, 0)
     const eye = e.position.offset(0, EYE_HEIGHT, 0)
-    return rayHitsBox(sentEye, e.yaw, e.pitch, box, REACH) && rayHitsBox(eye, e.yaw, e.pitch, box, REACH)
+    return rayHitsBox(sentEye, e.yaw, e.pitch, box, REACH) && rayHitsBox(eye, e.yaw, e.pitch, box, LOOK_RANGE)
   }
 
   // ---- Decisions -------------------------------------------------------------------------------
@@ -1192,14 +1226,30 @@ class CombatEngine {
     const sprintWas = this.sprintOn
 
     if (!e.onGround || !view.onGround) {
-      // In the air only a crit is worth it: the server must have received a downward move, and the
-      // sprint must already be off
-      if (!view.falling) return
-      c.sprint = false
-      if (sprintWas) {
-        reasons.after = 'Suelto el sprint para el crítico'
+      // Falling (as the server knows it): a crit, with the sprint already off. Rising: a charged hit
+      // now, unless the fall is near and the rival will still be there (see tactics.airSwing)
+      if (view.falling) {
+        c.sprint = false
+        if (sprintWas) {
+          reasons.after = 'Suelto el sprint para el crítico'
+          return
+        }
+        this.intent = 'attack'
         return
       }
+      const air = tactics.airSwing({
+        vy: Math.max(0, e.velocity ? e.velocity.y : 0),
+        distance: ctx.distance,
+        closingSpeed: ctx.closingSpeed,
+        // A spam-clicker's next hit is a weak one: not worth giving up the crit for (see planTrade)
+        enemyReadyIn: this.cycle.trade ? null : ctx.enemyReadyIn,
+        critJump: this.cycle.style === 'crit' && this.cycle.jumped,
+        rivalRuns: tactics.rivalRuns(ctx.summary, this.settings)
+      })
+      reasons.after = air.reason
+      if (!air.now) return
+      // No sprint change in an attack tick
+      c.sprint = sprintWas
       this.intent = 'attack'
       return
     }

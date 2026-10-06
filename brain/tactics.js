@@ -27,11 +27,16 @@ function enemyReachOf(model) {
   return model.reach ? Math.max(model.reach.median, model.reach.p90 ?? 0) : PHYS.MAX_REACH
 }
 
+// A rival closing in faster than this (blocks per tick, a sprint is 0.28) is rushing the bot
+const PRESSURE_CLOSING = 0.12
+
 // Picks between a crit (jump) hit and a sprint hit. Rules apply in order, first one wins.
 function chooseHitStyle(ctx, model, s, rng) {
   const { distance, closingSpeed, comboFor } = ctx
   if (distance > 4.2) return { style: 'sprint', reason: 'Sprint: estás lejos, hay que entrar' }
   if (closingSpeed < -0.15) return { style: 'sprint', reason: 'Sprint: te alejas, te persigo' }
+  // A rival rushing in reaches us before a crit jump comes down: whoever hits first takes the trade
+  if (closingSpeed > PRESSURE_CLOSING) return { style: 'sprint', reason: 'Sprint: vienes encima, gano el primer golpe' }
 
   const w = s.modelWeight
   const confidence = model.confidence
@@ -72,6 +77,60 @@ function planTrade(model, s, rng) {
     trade,
     reason: trade ? `Cambio golpes: spameas (${Math.round(model.spamRate * 100)} %) y tus golpes pegan poco` : ''
   }
+}
+
+// Blocks the rival backs off on its own after a swing (model.hitAndRun) to count as hit and run: a
+// walk back from a sprint approach covers about 0.45 in 6 ticks, a rival that stays reads 0
+const RUNS_AFTER_HIT = 0.25
+
+// From the owner's own inputs: s-taps after this share of his clicks, known at least this surely
+const STAP_RUNS = 0.5
+const STAP_CONFIDENCE = 0.4
+
+// The rival backs off after its hits, as far as this level trusts the model: seen in its positions
+// (hitAndRun) or, for the owner with the mod, in his keys (s-tap right after his clicks).
+function rivalRuns(model, s) {
+  if (s.modelWeight < 0.5) return false
+  const seen = model.hitAndRun !== null && model.hitAndRun !== undefined && model.hitAndRun > RUNS_AFTER_HIT
+  const inputs = model.inputs
+  const sTaps = Boolean(inputs) && inputs.stapRate !== null && inputs.stapRate !== undefined &&
+    inputs.stapRate >= STAP_RUNS && inputs.confidence.stapRate >= STAP_CONFIDENCE
+  return seen || sTaps
+}
+
+// Ticks until the server sees the bot falling (it gets each move a tick late), from its vertical speed.
+function ticksToFall(vy) {
+  let v = vy
+  let ticks = 1
+  while (v >= 0 && ticks < 30) {
+    v = (v - PHYS.GRAVITY) * PHYS.AIR_DRAG
+    ticks++
+  }
+  return ticks
+}
+
+// Waiting in the air for a crit is worth at most this many ticks (a whole jump when it was made for it).
+// A crit deals 1.5x: 10.5 per 13 + w ticks beats 7 per 13 while w <= 6
+const AIR_CRIT_WAIT = 6
+const CRIT_JUMP_WAIT = 10
+// Margin inside the reach the rival must still be at when the fall comes
+const AIR_REACH_MARGIN = 0.1
+
+// A charged swing while airborne (knockback flight, jump reset, crit jump). Falling: a crit now.
+// Rising: a plain charged hit now, unless the fall is a few ticks away, the rival will still be in
+// reach then and its own sword is not ready first; waiting longer just lets it walk out or hit first.
+// `critJump`: the bot jumped for this crit, so it waits out the whole rise on the same conditions.
+// `rivalRuns`: the model says the rival backs off right after its hits (hit and run), and a bot in the
+// air was usually just hit, so its closing speed does not show the run yet: hit now.
+function airSwing(ctx) {
+  const { vy, distance, closingSpeed, enemyReadyIn, critJump = false, rivalRuns = false } = ctx
+  if (vy < 0) return { now: true, reason: 'Crítico: ya caigo' }
+  if (rivalRuns && !critJump) return { now: true, reason: 'Pego en el aire: tras pegar te vas' }
+  const fallIn = ticksToFall(vy)
+  const stays = distance - closingSpeed * fallIn <= PHYS.MAX_REACH - AIR_REACH_MARGIN
+  const enemyFirst = enemyReadyIn !== null && enemyReadyIn !== undefined && enemyReadyIn <= fallIn
+  if (fallIn <= (critJump ? CRIT_JUMP_WAIT : AIR_CRIT_WAIT) && stays && !enemyFirst) return { now: false, reason: 'Espero a caer para el crítico' }
+  return { now: true, reason: 'Pego en el aire: el crítico llega tarde' }
 }
 
 // Plans the crit jump; a low level adds noise to the jump timing so it sometimes misses the window.
@@ -226,6 +285,8 @@ function comboBreak(ctx) {
 }
 
 module.exports = {
+  airSwing,
+  rivalRuns,
   enemyReachOf,
   chooseHitStyle,
   planCrit,

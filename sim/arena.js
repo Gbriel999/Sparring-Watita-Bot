@@ -33,7 +33,9 @@
 //     JUMP_RESET_FACTOR of the horizontal push (the rival jumps in the tick the hit lands; the bot jumps
 //     on its next move, pressed from `onHurt` like the real engine does from the velocity packet).
 //   - Metrics: critAttempts / sprintAttempts count the bot's attacks that reach the rival (in reach and
-//     aimed); sprintAttempts uses the sprint key as it was before this tick's toggle. Misses go to blindAttacks / outOfReachAttempts only, and an attack is classified as out of
+//     aimed). A crit attempt is an attack in the air while the server knows the bot is falling (an
+//     attack on the way up is a plain air hit, airHits); sprintAttempts uses the sprint key as it was
+//     before this tick's toggle. Misses go to blindAttacks / outOfReachAttempts only, and an attack is classified as out of
 //     reach before it is checked for aim. Damage is counted in full, even past the target's last health.
 //   - A death resets both fighters; an edge fall only sends the one who fell back to its start. Whoever
 //     starts over holds no key and is not sprinting for the server, like a client after a respawn.
@@ -42,7 +44,8 @@
 //     a copy fed like a vanilla server feeds a client: the rival's state at the end of every
 //     `every`-th tick (2: a player's update interval), delivered `lag` ticks later (each update rolls
 //     its lag from the seed; updates never overtake each other). Delivery happens before the engine
-//     decides. The hits are still judged on the real rival; only what the bot sees is late.
+//     decides. The rival's swing animations come as late as its positions. The bot's swings are judged against that late copy, like Grim's lag-compensated reach
+//     check judges a client against the positions it had; damage and knockback go to the real rival.
 
 const { Vec3 } = require('vec3')
 const { PHYS, canCrit, knockbackSpeed } = require('../brain/physics')
@@ -192,6 +195,7 @@ class Arena {
       hitsLanded: 0,
       critsLanded: 0,
       critAttempts: 0,
+      airHits: 0,
       sprintAttempts: 0,
       sprintHitsReal: 0,
       hitDistanceSum: 0,
@@ -211,7 +215,7 @@ class Arena {
     this.rivalView = this.rival.entity
     if (rivalFeed) {
       const options = rivalFeed === true ? DEFAULT_FEED : { ...DEFAULT_FEED, ...rivalFeed }
-      this.feed = { ...options, rng: seeded(deriveSeed(seed, STREAM_SALT_FEED)), queue: [], lastArrival: 0 }
+      this.feed = { ...options, rng: seeded(deriveSeed(seed, STREAM_SALT_FEED)), queue: [], lastArrival: 0, swings: [] }
       const real = this.rival.entity
       this.rivalView = { ...real, position: real.position.clone(), velocity: real.velocity.clone() }
     }
@@ -336,10 +340,40 @@ class Arena {
     })
   }
 
+  /** The rival's swing animation: at once, or with rivalFeed as late as its position updates. */
+  hearSwing () {
+    const feed = this.feed
+    if (!feed) {
+      this.engine.onTargetSwing()
+      return
+    }
+    const [minLag, maxLag] = feed.lag
+    feed.swings.push(this.tick + minLag + Math.floor(feed.rng() * (maxLag - minLag + 1)))
+  }
+
+  /** The late copy of the rival jumps to where it really is, and the updates on their way are dropped. */
+  snapRivalView () {
+    const feed = this.feed
+    if (!feed) return
+    feed.queue = []
+    feed.swings = []
+    const real = this.rival.entity
+    const view = this.rivalView
+    view.position.set(real.position.x, real.position.y, real.position.z)
+    view.velocity.set(real.velocity.x, real.velocity.y, real.velocity.z)
+    view.onGround = real.onGround
+    view.yaw = real.yaw
+    view.pitch = real.pitch
+  }
+
   /** Applies the updates due by this tick to the copy of the rival the engine sees. */
   deliverRivalFeed () {
     const feed = this.feed
     if (!feed) return
+    while (feed.swings.length > 0 && feed.swings[0] <= this.tick) {
+      feed.swings.shift()
+      this.engine.onTargetSwing()
+    }
     while (feed.queue.length > 0 && feed.queue[0].arrival <= this.tick) {
       const update = feed.queue.shift()
       const view = this.rivalView
@@ -369,16 +403,20 @@ class Arena {
     // Any attack is a swing too: it restarts the charge whether or not it connects
     attacker.lastAttackTick = this.tick
 
-    if (!isBot) this.engine.onTargetSwing()
+    if (!isBot) this.hearSwing()
     // The sprint key changed in this very tick: the packets went out in the wrong order
     if (isBot && attacker.sprintToggled) stats.packetOrderViolations++
 
     // Both fighters are judged where the server holds them: the bot at its last position packet (its
     // attack arrives before its new position), the rival where it is (it has not moved yet)
     const from = this.seenAt(attacker)
-    const to = this.seenAt(target)
+    // The bot's swing is checked against the rival as the bot saw it: Grim's reach check is
+    // lag-compensated (it accepts the positions the client had), and vanilla only checks distance
+    const to = isBot && this.feed ? this.rivalView.position : this.seenAt(target)
     const distance = reachDistance(from, to)
-    if (distance > PHYS.MAX_REACH) {
+    // A rival script may claim more reach: on a server its lag lets it hit from farther than 3
+    const maxReach = isBot ? PHYS.MAX_REACH : (this.rivalScript.reach || PHYS.MAX_REACH)
+    if (distance > maxReach) {
       if (isBot) stats.outOfReachAttempts++
       return
     }
@@ -392,7 +430,10 @@ class Arena {
       }
       // An attempt is an attack that reaches the rival: the ones that miss have their own counters
       // (blindAttacks, outOfReachAttempts), so a miss never shows up as a failed crit or sprint hit.
-      if (!attacker.server.onGround) stats.critAttempts++
+      if (!attacker.server.onGround) {
+        if (attacker.server.dy < 0) stats.critAttempts++
+        else stats.airHits++
+      }
       if (attacker.sprintControlBefore) stats.sprintAttempts++
     }
     if (this.tick - target.lastHurtTick < PHYS.INVULNERABLE_TICKS) return
@@ -429,6 +470,8 @@ class Arena {
       stats.damageTaken += damage
       this.engine.onHurt()
       this.engine.onSelfHurt({ byTarget: true })
+      // The server shows the crit effect right after the hurt (bot.js: entityCriticalEffect)
+      if (crit) this.engine.onCritTaken?.()
     }
   }
 
@@ -470,6 +513,10 @@ class Arena {
     if (botDead || rivalDead) {
       this.self.respawn()
       this.rival.respawn()
+      // Like the game: the bot resyncs on its respawn (bot.js) and the rival's spawn is a fresh
+      // position, not the late updates of where it died
+      this.snapRivalView()
+      this.engine.resync?.()
     }
   }
 
@@ -555,6 +602,7 @@ class Arena {
       hitsLanded: s.hitsLanded,
       critsLanded: s.critsLanded,
       critAttempts: s.critAttempts,
+      airHits: s.airHits,
       sprintAttempts: s.sprintAttempts,
       sprintHitsReal: s.sprintHitsReal,
       avgHitDistance: s.hitsLanded > 0 ? round3(s.hitDistanceSum / s.hitsLanded) : 0,

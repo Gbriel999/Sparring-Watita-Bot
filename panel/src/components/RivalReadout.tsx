@@ -1,4 +1,4 @@
-import type { RivalReadout as Readout, RivalSummary } from '../types'
+import type { InputLinkStatus, RivalReadout as Readout, RivalSummary } from '../types'
 import { decimal } from '../names'
 
 const CONFIDENCE_SEGMENTS = 5
@@ -6,6 +6,8 @@ const CONFIDENCE_SEGMENTS = 5
 const ORBIT_NO_PREFERENCE = 0.2
 const AGGRESSION_HIGH = 0.6
 const AGGRESSION_LOW = 0.35
+/** Same threshold as brain/tactics.js RUNS_AFTER_HIT */
+const RUNS_AFTER_HIT = 0.25
 
 interface Row {
   id: string
@@ -14,6 +16,10 @@ interface Row {
   value: string | null
   /** 0..1, or null for a trait with no confidence of its own */
   confidence: number | null
+  /** Learned from the owner's own keys (the mod), not estimated from the server */
+  fromKeys?: boolean
+  /** Only the mod can measure it: hidden while there is neither a link nor a value */
+  keysOnly?: boolean
 }
 
 function percent (rate: number): string {
@@ -34,9 +40,15 @@ function aggressionText (aggression: number): string {
   return 'media'
 }
 
+function ticks (n: number): string {
+  const rounded = Math.round(n)
+  return `${rounded} ${rounded === 1 ? 'tick' : 'ticks'}`
+}
+
 function rowsOf (summary: RivalSummary | null): Row[] {
   const s = summary
   const c = s?.confidence
+  const i = s?.inputs
   return [
     {
       id: 'reach',
@@ -50,13 +62,19 @@ function rowsOf (summary: RivalSummary | null): Row[] {
       value: s && s.swingInterval !== null
         ? `${Math.round(s.swingInterval)} ticks` + (s.spamRate !== null ? ` · spam ${percent(s.spamRate)}` : '')
         : null,
-      confidence: c?.rhythm ?? 0
+      confidence: c?.rhythm ?? 0,
+      fromKeys: s?.sources?.spamRate === 'inputs' || s?.sources?.swingInterval === 'inputs'
     },
     {
       id: 'jump-reset',
       label: 'Jump reset',
-      value: s && s.jumpResetRate !== null ? percent(s.jumpResetRate) : null,
-      confidence: c?.jumpReset ?? 0
+      value: s && s.jumpResetRate !== null
+        ? percent(s.jumpResetRate) + (s.sources?.jumpResetRate === 'inputs' && i?.jumpResetTicks != null
+          ? ` · a ${ticks(i.jumpResetTicks)}`
+          : '')
+        : null,
+      confidence: c?.jumpReset ?? 0,
+      fromKeys: s?.sources?.jumpResetRate === 'inputs'
     },
     {
       id: 'kb',
@@ -68,7 +86,8 @@ function rowsOf (summary: RivalSummary | null): Row[] {
       id: 'strafe',
       label: 'Strafe',
       value: s ? strafeText(s) : null,
-      confidence: c?.strafe ?? 0
+      confidence: c?.strafe ?? 0,
+      fromKeys: s?.sources?.strafeLength === 'inputs'
     },
     {
       id: 'weak-side',
@@ -92,12 +111,57 @@ function rowsOf (summary: RivalSummary | null): Row[] {
       confidence: c?.block ?? 0
     },
     {
+      id: 'hit-and-run',
+      label: 'Tras pegar',
+      value: s && s.hitAndRun != null
+        ? (s.hitAndRun > RUNS_AFTER_HIT ? `te vas (${decimal(s.hitAndRun)} bl)` : 'te quedas')
+        : null,
+      confidence: c?.run ?? 0
+    },
+    {
+      id: 'charge',
+      label: 'Carga al pegar',
+      value: i?.hitCharge != null ? percent(i.hitCharge) : null,
+      confidence: i?.confidence.hitCharge ?? 0,
+      fromKeys: true,
+      keysOnly: true
+    },
+    {
+      id: 'wtap',
+      label: 'W-tap',
+      value: i?.wtapRate != null
+        ? percent(i.wtapRate) + (i.wtapTicks != null ? ` · suelta ${ticks(i.wtapTicks)}` : '')
+        : null,
+      confidence: i?.confidence.wtapRate ?? 0,
+      fromKeys: true,
+      keysOnly: true
+    },
+    {
+      id: 'stap',
+      label: 'S-tap',
+      value: i?.stapRate != null ? percent(i.stapRate) : null,
+      confidence: i?.confidence.stapRate ?? 0,
+      fromKeys: true,
+      keysOnly: true
+    },
+    {
       id: 'aggression',
       label: 'Agresividad',
       value: s && s.aggression !== null ? aggressionText(s.aggression) : null,
       confidence: null
     }
   ]
+}
+
+function linkText (link: InputLinkStatus | null): string {
+  if (!link) return ''
+  switch (link.state) {
+    case 'conectado': return `Tus teclas: conectado${link.player ? ` (${link.player})` : ''}`
+    case 'esperando': return 'Tus teclas: esperando el mod'
+    case 'rechazado': return `Tus teclas: rechazado${link.reason ? ` (${link.reason})` : ''}`
+    case 'error': return `Tus teclas: sin puerto${link.reason ? ` (${link.reason})` : ''}`
+    default: return 'Tus teclas: apagado'
+  }
 }
 
 function metaText (rival: Readout | null): string {
@@ -117,8 +181,9 @@ function ConfidenceBar ({ value }: { value: number }) {
   )
 }
 
-export function RivalReadout ({ rival }: { rival: Readout | null }) {
-  const rows = rowsOf(rival?.summary ?? null)
+export function RivalReadout ({ rival, link }: { rival: Readout | null, link: InputLinkStatus | null }) {
+  const linked = link?.state === 'conectado'
+  const rows = rowsOf(rival?.summary ?? null).filter((row) => !row.keysOnly || linked || row.value !== null)
   const plan = rival?.plan ?? []
 
   return (
@@ -127,6 +192,12 @@ export function RivalReadout ({ rival }: { rival: Readout | null }) {
         <h2 id="rival-title" className="tab">Lectura del rival</h2>
         <span className="block-meta">{metaText(rival)}</span>
       </header>
+      {link && (
+        <p className={`rival-link is-${link.state}`} role="status">
+          <span className="rival-link-dot" aria-hidden />
+          {linkText(link)}
+        </p>
+      )}
 
       <div className="rival-body">
         <dl className="rival-list">
@@ -134,7 +205,10 @@ export function RivalReadout ({ rival }: { rival: Readout | null }) {
             <div key={row.id} className={'rival-row' + (row.value === null ? ' is-empty' : '')}>
               <dt>{row.label}</dt>
               <dd>
-                <span className="rival-value">{row.value ?? 'Aprendiendo…'}</span>
+                <span className="rival-value">
+                  {row.value ?? 'Aprendiendo…'}
+                  {row.fromKeys && row.value !== null && <span className="rival-keys">tus teclas</span>}
+                </span>
                 {row.confidence !== null && <ConfidenceBar value={row.confidence} />}
               </dd>
             </div>

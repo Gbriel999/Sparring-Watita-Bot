@@ -153,3 +153,43 @@ test('while trading with a spam-clicker the after-hit plan keeps no s-tap to avo
   assert.doesNotMatch(trading.reason, /no cambiar golpes/)
   assert.strictEqual(trading.reason, avoiding.reason.replace(' · s-tap para no cambiar golpes', ''))
 })
+
+test('in the air a charged hit goes now unless the crit fall is near and the rival stays in reach', () => {
+  // Just jumped (the fall is 7 ticks away): a crit is not worth the wait, hit now
+  assert.strictEqual(t.airSwing({ vy: 0.42, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10 }).now, true)
+  // The apex is a tick or two away, the rival stays, its sword is not ready: wait for the crit
+  assert.strictEqual(t.airSwing({ vy: 0.05, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10 }).now, false)
+  // Same, but the rival is leaving the reach before the fall: hit now
+  assert.strictEqual(t.airSwing({ vy: 0.05, distance: 2.9, closingSpeed: -0.25, enemyReadyIn: 10 }).now, true)
+  // Same, but its sword is ready first: hit now, waiting gives it the first hit
+  assert.strictEqual(t.airSwing({ vy: 0.05, distance: 2.6, closingSpeed: 0, enemyReadyIn: 0 }).now, true)
+  // Falling: the crit is there
+  const falling = t.airSwing({ vy: -0.1, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10 })
+  assert.strictEqual(falling.now, true)
+  assert.match(falling.reason, /[Cc]rítico/)
+})
+
+test('a rival rushing in gets a sprint hit, the first hit of the trade wins', () => {
+  const choice = t.chooseHitStyle({ distance: 3.6, closingSpeed: 0.2, comboFor: 0, comboAgainst: 0 }, empty, expert, always)
+  assert.strictEqual(choice.style, 'sprint')
+  assert.match(choice.reason, /primer golpe/)
+})
+
+test('in a jump made for the crit the bot waits for the whole fall, unless the rival leaves or hits first', () => {
+  assert.strictEqual(t.airSwing({ vy: 0.35, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10, critJump: true }).now, false)
+  assert.strictEqual(t.airSwing({ vy: 0.35, distance: 2.9, closingSpeed: -0.2, enemyReadyIn: 10, critJump: true }).now, true)
+  assert.strictEqual(t.airSwing({ vy: 0.35, distance: 2.6, closingSpeed: 0, enemyReadyIn: 2, critJump: true }).now, true)
+})
+
+test('against a rival that runs after its hits, the bot hits in the air at once', () => {
+  assert.strictEqual(t.airSwing({ vy: 0.05, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10, rivalRuns: true }).now, true)
+  assert.strictEqual(t.airSwing({ vy: 0.05, distance: 2.6, closingSpeed: 0, enemyReadyIn: 10, rivalRuns: false }).now, false)
+})
+
+test('an owner that s-taps after most hits (from his inputs) counts as running after his hits', () => {
+  const inputs = { stapRate: 0.7, confidence: { stapRate: 0.6 } }
+  assert.strictEqual(t.rivalRuns({ ...empty, hitAndRun: null, inputs }, expert), true)
+  assert.strictEqual(t.rivalRuns({ ...empty, hitAndRun: null, inputs: { stapRate: 0.2, confidence: { stapRate: 1 } } }, expert), false)
+  assert.strictEqual(t.rivalRuns({ ...empty, hitAndRun: null, inputs: { stapRate: 0.7, confidence: { stapRate: 0.1 } } }, expert), false)
+  assert.strictEqual(t.rivalRuns({ ...empty, hitAndRun: null }, expert), false)
+})
