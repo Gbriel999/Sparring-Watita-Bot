@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T18:45:00Z",
+  "title": "Design System: Sparring",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Tinta de sala", "canonical": "oklch(16.2% 0.021 275)", "tonalRamp": ["#090b11", "#22242a", "#3c3f4b", "#5a5d6a", "#7c7f8d", "#a0a4b2", "#c6cad9", "#eaeefd"] },
+      "ink-raised": { "role": "neutral", "displayName": "Tinta elevada", "canonical": "oklch(20.3% 0.038 275)", "tonalRamp": ["#080a15", "#21232f", "#3a3e54", "#575c74", "#797f98", "#9da3bd", "#c3c9e4", "#e7edff"] },
+      "panel": { "role": "neutral", "displayName": "Panel translúcido", "canonical": "rgb(242 242 255 / 0.045)", "tonalRamp": ["#0b0b0f", "#232329", "#3f3f49", "#5c5c67", "#7f7f8a", "#a3a3af", "#c9c9d6", "#ededfa"] },
+      "panel-hover": { "role": "neutral", "displayName": "Panel en hover", "canonical": "rgb(242 242 255 / 0.075)", "tonalRamp": ["#0b0b0f", "#232329", "#3f3f49", "#5c5c67", "#7f7f8a", "#a3a3af", "#c9c9d6", "#ededfa"] },
+      "line": { "role": "neutral", "displayName": "Línea", "canonical": "rgb(242 242 255 / 0.1)", "tonalRamp": ["#0b0b0f", "#232329", "#3f3f49", "#5c5c67", "#7f7f8a", "#a3a3af", "#c9c9d6", "#ededfa"] },
+      "line-strong": { "role": "neutral", "displayName": "Línea marcada", "canonical": "rgb(242 242 255 / 0.24)", "tonalRamp": ["#0b0b0f", "#232329", "#3f3f49", "#5c5c67", "#7f7f8a", "#a3a3af", "#c9c9d6", "#ededfa"] },
+      "text": { "role": "neutral", "displayName": "Texto", "canonical": "oklch(96.1% 0 0)", "tonalRamp": ["#0b0b0b", "#242424", "#404040", "#5d5d5d", "#808080", "#a4a4a4", "#cacaca", "#eeeeee"] },
+      "text-dim": { "role": "neutral", "displayName": "Texto atenuado", "canonical": "oklch(73.8% 0.037 274)", "tonalRamp": ["#080a14", "#21232f", "#3a3e53", "#575c73", "#797f97", "#9da3bc", "#c3c9e3", "#e7edff"] },
+      "text-faint": { "role": "neutral", "displayName": "Texto tenue", "canonical": "oklch(61.9% 0.048 274)", "tonalRamp": ["#080a17", "#202332", "#383e59", "#555c79", "#787e9d", "#9ba3c3", "#c1c9ea", "#e5edff"] },
+      "amber": { "role": "primary", "displayName": "Ámbar de selección", "canonical": "oklch(81.2% 0.170 76)", "tonalRamp": ["#210000", "#3e1800", "#6f2700", "#914900", "#b86d00", "#e09200", "#ffb91f", "#ffdd55"] },
+      "amber-soft": { "role": "primary", "displayName": "Ámbar pendiente", "canonical": "rgb(255 176 0 / 0.16)", "tonalRamp": ["#210000", "#3e1800", "#6f2700", "#914900", "#b86d00", "#e09200", "#ffb91f", "#ffdd55"] },
+      "mint": { "role": "secondary", "displayName": "Menta en vivo", "canonical": "oklch(79.7% 0.164 159)", "tonalRamp": ["#001500", "#003111", "#00561c", "#00773a", "#009c5c", "#01c37f", "#50eaa4", "#7bffc8"] },
+      "red": { "role": "tertiary", "displayName": "Rojo de daño", "canonical": "oklch(67.6% 0.213 19)", "tonalRamp": ["#2f0000", "#510006", "#900001", "#b80025", "#e32f48", "#ff5d6b", "#ff8690", "#ffacb2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Titular de la pantalla de bloqueo y lecturas grandes del medidor." },
+      "numeral": { "displayName": "Numeral", "purpose": "Valores de contadores y existencias, cifras tabulares; 26px en móvil." },
+      "title": { "displayName": "Título de fila", "purpose": "Nombre de cada fila de ajustes del muñeco." },
+      "tab": { "displayName": "Pestaña", "purpose": "Pestaña inclinada de cada bloque; 16px en móvil." },
+      "option": { "displayName": "Opción", "purpose": "Opciones del menú y el valor ACCIÓN de la franja." },
+      "button": { "displayName": "Botón", "purpose": "Botones de acción y leyendas de grupo." },
+      "label": { "displayName": "Rótulo", "purpose": "Rótulos de datos y etiquetas de entrada, en text-faint; rótulos de campo a 14px." },
+      "meta": { "displayName": "Meta", "purpose": "Metadato a la derecha de la cabecera de bloque." },
+      "body": { "displayName": "Cuerpo", "purpose": "Texto corrido en Saira Variable." },
+      "hint": { "displayName": "Pista", "purpose": "Pista de fila, máximo 52ch; pistas de campo a 13px." },
+      "data": { "displayName": "Dato", "purpose": "Solo datos de máquina: registro, frames, servidor, comandos." }
+    },
+    "shadows": [
+      { "name": "notice", "value": "0 12px 32px rgb(0 0 0 / 0.45)", "purpose": "Solo el aviso flotante anclado abajo." },
+      { "name": "keycap-lip", "value": "inset 0 -3px 0 rgb(242 242 255 / 0.24)", "purpose": "Labio inferior de la tecla en reposo; desaparece al pulsar." },
+      { "name": "crit-edge", "value": "inset 0 3px 0 #f2f2f2", "purpose": "Filo blanco de la casilla de crítico en el medidor y su leyenda." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Curva de todas las transiciones con desplazamiento o escala." },
+      { "name": "state", "value": "120ms", "purpose": "Cambios de color y borde en botones, opciones y cursor de fila." },
+      { "name": "keycap", "value": "50ms", "purpose": "Pulsación de teclas del visor de entradas." },
+      { "name": "health-trail", "value": "260ms tras 700ms", "purpose": "Rastro rojo de la vida perdida." },
+      { "name": "pulse", "value": "0.9s-1.1s ease-in-out infinite", "purpose": "Opción pendiente, punto conectando y marca de arranque." },
+      { "name": "stamp", "value": "1400ms", "purpose": "Sello de combate: entra con escala y desenfoque, sale recortándose." },
+      { "name": "slant", "value": "-12deg", "purpose": "Inclinación de barras, cursores, vida y sellos." }
+    ],
+    "breakpoints": [
+      { "name": "strip-wrap", "value": "1180px" },
+      { "name": "single-column", "value": "900px" },
+      { "name": "phone", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "action-primary",
+      "description": "La acción principal del momento: Conectar, Entrar, Guardar.",
+      "html": "<button class=\"ds-action ds-action-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 22v-5\"/><path d=\"M9 8V2\"/><path d=\"M15 8V2\"/><path d=\"M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z\"/></svg>Conectar</button>",
+      "css": ".ds-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1.5px solid var(--line-strong, rgb(242 242 255 / 0.24)); border-radius: 4px; background: transparent; color: var(--text, #f2f2f2); font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transition: background-color 120ms, border-color 120ms, transform 80ms; } .ds-action-primary { background: var(--text, #f2f2f2); border-color: var(--text, #f2f2f2); color: var(--ink, #0b0d17); } .ds-action-primary:hover { background: #ffffff; border-color: #ffffff; } .ds-action:active { transform: translateY(1px); } .ds-action:focus-visible { outline: 2px solid var(--amber, #ffb000); outline-offset: 2px; }"
+    },
+    {
+      "name": "Botón normal",
+      "kind": "button",
+      "refersTo": "action",
+      "description": "Acciones secundarias: Equipar lo mejor, Pedir kit, Enviar.",
+      "html": "<button class=\"ds-action-default\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/></svg>Contadores a cero</button>",
+      "css": ".ds-action-default { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 1.5px solid var(--line-strong, rgb(242 242 255 / 0.24)); border-radius: 4px; background: transparent; color: var(--text, #f2f2f2); font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background-color 120ms, border-color 120ms, transform 80ms; } .ds-action-default:hover { background: var(--panel-hover, rgb(242 242 255 / 0.075)); border-color: rgb(242 242 255 / 0.4); } .ds-action-default:active { transform: translateY(1px); } .ds-action-default:focus-visible { outline: 2px solid var(--amber, #ffb000); outline-offset: 2px; } .ds-action-default:disabled { opacity: 0.4; cursor: not-allowed; }"
+    },
+    {
+      "name": "Fila del menú del muñeco",
+      "kind": "custom",
+      "refersTo": "menu-option-selected",
+      "description": "Componente firma: fila con cursor inclinado y opciones en barras; elegida en ámbar, pendiente discontinua ámbar, bloqueada discontinua neutra.",
+      "html": "<div class=\"ds-menu-row is-current\"><div class=\"ds-menu-label\"><span class=\"ds-menu-name\">Acción</span><span class=\"ds-menu-hint\">Moverse y Pelear necesitan que estés en su servidor.</span></div><div class=\"ds-menu-options\" role=\"radiogroup\"><button class=\"ds-menu-option\" role=\"radio\" aria-checked=\"true\">Quieto</button><button class=\"ds-menu-option is-blocked\" role=\"radio\" aria-checked=\"false\">Moverse</button><button class=\"ds-menu-option is-pending\" role=\"radio\" aria-checked=\"false\">Pelear</button></div></div>",
+      "css": ".ds-menu-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 24px; padding: 14px 20px 14px 34px; isolation: isolate; color: var(--text, #f2f2f2); } .ds-menu-row::before { content: ''; position: absolute; inset: 4px 10px; z-index: -1; background: rgb(242 242 255 / 0.06); transform: skewX(-12deg) scaleX(0.98); opacity: 0; transition: opacity 120ms, transform 200ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-menu-row::after { content: ''; position: absolute; left: 14px; top: 50%; width: 8px; height: 12px; margin-top: -6px; background: var(--amber, #ffb000); clip-path: polygon(0 0, 100% 50%, 0 100%); opacity: 0; transform: translateX(-4px); transition: opacity 120ms, transform 200ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-menu-row:hover::before, .ds-menu-row:focus-within::before, .ds-menu-row.is-current::before { opacity: 1; transform: skewX(-12deg) scaleX(1); } .ds-menu-row:focus-within::after, .ds-menu-row.is-current::after { opacity: 1; transform: none; } .ds-menu-label { display: grid; gap: 2px; } .ds-menu-name { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; font-size: 21px; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.1; } .ds-menu-hint { font-family: 'Saira Variable', system-ui, sans-serif; font-size: 14px; line-height: 1.4; color: var(--text-dim, #a3a9c2); max-width: 52ch; } .ds-menu-options { display: flex; gap: 4px; } .ds-menu-option { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 84px; min-height: 44px; padding: 0 16px; border: 0; background: transparent; font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim, #a3a9c2); isolation: isolate; cursor: pointer; transition: color 120ms; } .ds-menu-option::before { content: ''; position: absolute; inset: 4px 2px; z-index: -1; border: 1.5px solid var(--line, rgb(242 242 255 / 0.1)); transform: skewX(-12deg); transition: background-color 140ms, border-color 140ms, transform 220ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-menu-option:hover { color: var(--text, #f2f2f2); } .ds-menu-option:hover::before { border-color: var(--line-strong, rgb(242 242 255 / 0.24)); } .ds-menu-option[aria-checked='true'] { color: var(--ink, #0b0d17); } .ds-menu-option[aria-checked='true']::before { background: var(--amber, #ffb000); border-color: var(--amber, #ffb000); transform: skewX(-12deg) scale(1.04); } .ds-menu-option.is-pending { color: var(--amber, #ffb000); } .ds-menu-option.is-pending::before { background: var(--amber-soft, rgb(255 176 0 / 0.16)); border: 1.5px dashed var(--amber, #ffb000); } .ds-menu-option.is-blocked:not([aria-checked='true']) { color: var(--text-faint, #7d84a3); } .ds-menu-option.is-blocked:not([aria-checked='true'])::before { border-style: dashed; } .ds-menu-option:focus-visible { outline: none; } .ds-menu-option:focus-visible::before { outline: 2px solid var(--text, #f2f2f2); outline-offset: 3px; }"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Campo de configuración con rótulo condensado y pista; foco con borde ámbar.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-host\">Servidor</label><input class=\"ds-input\" id=\"ds-host\" value=\"java.watones.net\"><span class=\"ds-field-hint\">El bot entra por el proxy.</span></div>",
+      "css": ".ds-field { display: grid; gap: 6px; } .ds-field-label { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text, #f2f2f2); } .ds-input { width: 100%; min-height: 42px; padding: 9px 12px; border: 1.5px solid var(--line-strong, rgb(242 242 255 / 0.24)); border-radius: 4px; background: rgb(11 13 23 / 0.6); color: var(--text, #f2f2f2); font-family: 'Saira Variable', system-ui, sans-serif; font-size: 15px; caret-color: var(--amber, #ffb000); transition: border-color 120ms; } .ds-input::placeholder { color: var(--text-faint, #7d84a3); } .ds-input:hover { border-color: rgb(242 242 255 / 0.4); } .ds-input:focus { border-color: var(--amber, #ffb000); outline: none; } .ds-field-hint { font-family: 'Saira Variable', system-ui, sans-serif; font-size: 13px; line-height: 1.45; color: var(--text-dim, #a3a9c2); }"
+    },
+    {
+      "name": "Bloque con pestaña",
+      "kind": "card",
+      "refersTo": "block",
+      "description": "Contenedor de cada área: panel translúcido, cabecera con pestaña inclinada y metadato.",
+      "html": "<section class=\"ds-block\"><header class=\"ds-block-head\"><h2 class=\"ds-tab\">Sesión</h2><span class=\"ds-block-meta\">Desde hace 0:23</span></header><p class=\"ds-block-body\">Contenido del bloque.</p></section>",
+      "css": ".ds-block { position: relative; background: var(--panel, rgb(242 242 255 / 0.045)); border: 1px solid var(--line, rgb(242 242 255 / 0.1)); border-radius: 6px; padding: 0 20px 20px; color: var(--text, #f2f2f2); } .ds-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px 16px; padding: 0 20px 0 0; border-bottom: 1px solid var(--line, rgb(242 242 255 / 0.1)); min-height: 44px; } .ds-tab { position: relative; align-self: stretch; display: flex; align-items: center; margin: 0; padding: 0 26px 0 20px; font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1; isolation: isolate; } .ds-tab::before { content: ''; position: absolute; inset: 0 0 -1px -1px; z-index: -1; background: rgb(242 242 255 / 0.08); border-top-left-radius: 6px; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); } .ds-block-meta { font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint, #7d84a3); } .ds-block-body { margin: 0; font-family: 'Saira Variable', system-ui, sans-serif; font-size: 15px; color: var(--text-dim, #a3a9c2); }"
+    },
+    {
+      "name": "Tecla del visor de entradas",
+      "kind": "custom",
+      "refersTo": "cap",
+      "description": "Tecla con labio inferior; pulsada se rellena de blanco y baja, al conectar un golpe se rellena de ámbar.",
+      "html": "<div class=\"ds-caps\"><span class=\"ds-cap\">W</span><span class=\"ds-cap is-on\">A</span><span class=\"ds-cap is-on is-hit\">Clic</span></div>",
+      "css": ".ds-caps { display: grid; grid-template-columns: repeat(3, 72px); gap: 8px; } .ds-cap { display: grid; place-items: center; height: 52px; border: 1.5px solid var(--line-strong, rgb(242 242 255 / 0.24)); border-radius: 6px; background: rgb(242 242 255 / 0.03); font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim, #a3a9c2); box-shadow: inset 0 -3px 0 var(--line-strong, rgb(242 242 255 / 0.24)); transition: background-color 50ms, color 50ms, transform 50ms, box-shadow 50ms; } .ds-cap:hover { border-color: rgb(242 242 255 / 0.4); } .ds-cap.is-on { background: var(--text, #f2f2f2); border-color: var(--text, #f2f2f2); box-shadow: none; color: var(--ink, #0b0d17); transform: translateY(2.5px); } .ds-cap.is-on.is-hit { background: var(--amber, #ffb000); border-color: var(--amber, #ffb000); }"
+    },
+    {
+      "name": "Interruptor Sí/No",
+      "kind": "custom",
+      "refersTo": "switch-on",
+      "description": "Píldora con el estado escrito dentro; encendido en menta.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\">Sí</button><button class=\"ds-switch\" role=\"switch\" aria-checked=\"false\">No</button>",
+      "css": ".ds-switch { position: relative; width: 74px; height: 34px; margin-right: 8px; padding: 0 10px; border: 1.5px solid var(--line-strong, rgb(242 242 255 / 0.24)); border-radius: 34px; background: transparent; font-family: 'Saira Condensed', 'Arial Narrow', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim, #a3a9c2); text-align: right; cursor: pointer; transition: background-color 160ms, border-color 160ms, color 160ms; } .ds-switch::before { content: ''; position: absolute; top: 4px; left: 4px; width: 23px; height: 23px; border-radius: 50%; background: var(--text-dim, #a3a9c2); transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms; } .ds-switch:hover { border-color: rgb(242 242 255 / 0.4); } .ds-switch:focus-visible { outline: 2px solid var(--amber, #ffb000); outline-offset: 2px; } .ds-switch[aria-checked='true'] { background: var(--mint, #3ddc97); border-color: var(--mint, #3ddc97); color: var(--ink, #0b0d17); text-align: left; } .ds-switch[aria-checked='true']::before { background: var(--ink, #0b0d17); transform: translateX(37px); }"
+    },
+    {
+      "name": "Medidor de frames",
+      "kind": "custom",
+      "refersTo": "frame-meter",
+      "description": "Casillas de un tick: carga gris, lista menta, golpe ámbar, crítico ámbar con filo, fallo en contorno, daño recibido en rojo.",
+      "html": "<div class=\"ds-frames\"><span class=\"ds-frame is-charge\"></span><span class=\"ds-frame is-charge\"></span><span class=\"ds-frame is-ready\"></span><span class=\"ds-frame is-ready\"></span><span class=\"ds-frame is-hit\"></span><span class=\"ds-frame is-crit\"></span><span class=\"ds-frame is-miss\"></span><span class=\"ds-frame is-hurt\"></span><span class=\"ds-frame is-empty\"></span><span class=\"ds-frame is-empty\"></span></div>",
+      "css": ".ds-frames { display: grid; grid-template-columns: repeat(10, 14px); gap: 2px; align-items: end; height: 56px; padding-top: 6px; border-bottom: 1px solid var(--line-strong, rgb(242 242 255 / 0.24)); } .ds-frame { height: 70%; border-radius: 1px; } .ds-frame.is-empty { background: rgb(242 242 255 / 0.03); } .ds-frame.is-charge { background: rgb(242 242 255 / 0.3); } .ds-frame.is-ready { background: var(--mint, #3ddc97); } .ds-frame.is-hit { height: 86%; background: var(--amber, #ffb000); } .ds-frame.is-crit { height: 100%; background: var(--amber, #ffb000); box-shadow: inset 0 3px 0 var(--text, #f2f2f2); } .ds-frame.is-miss { height: 86%; box-shadow: inset 0 0 0 1.5px var(--text, #f2f2f2); } .ds-frame.is-hurt { height: 100%; background: var(--red, #ff4d5e); } .ds-frame:hover { outline: 1px solid var(--line-strong, rgb(242 242 255 / 0.24)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La sala de entrenamiento",
+    "overview": "El panel es el menú de práctica de un juego de lucha, superpuesto sobre una sala en penumbra: el bot es el muñeco de entrenamiento, su comportamiento es una lista de ajustes del muñeco y sus controles reales aparecen en un visor de entradas y en un medidor de frames. El suelo es tinta casi negra con una rejilla tenue de escenario de práctica; encima flota un único tono de panel translúcido, texto blanco y etiquetas condensadas en mayúsculas.\n\nLa densidad es de interfaz de juego, no de panel de hosting: bloques con pestaña inclinada en lugar de tarjetas con título, filas de menú con cursor en lugar de formularios, números grandes y tabulares. El color es escaso y semántico: tres acentos, cada uno con una sola tarea, sobre neutros fríos. Nada brilla: no hay glow, ni degradados de color, ni RGB.\n\nLa inclinación de -12deg es la firma: la llevan la barra de selección, la barra de cursor de cada fila, la barra de vida, la entrada más reciente del historial y el sello de los avisos de combate. Todo el texto visible está en español.",
+    "keyCharacteristics": [
+      "Tinta casi negra con rejilla de 48px al 3,5 % como suelo de escenario.",
+      "Un solo tono de panel translúcido; la profundidad sale de líneas finas, no de sombras.",
+      "Ámbar = selección y valor activo; menta = vivo y listo; rojo = daño recibido.",
+      "Etiquetas Saira Condensed en mayúsculas; cuerpo Saira; JetBrains Mono solo para datos.",
+      "Inclinación -12deg en barras, cursores y sellos.",
+      "Iconos lucide-react, trazo 2.25, 14-16px, siempre junto a texto."
+    ],
+    "rules": [
+      { "name": "The Una Tarea Por Color Rule", "body": "Ámbar selecciona, menta confirma que algo vive, rojo dice que hubo daño. Ningún acento cambia de tarea, y ninguno decora.", "section": "colors" },
+      { "name": "The Avisos Sin Color Rule", "body": "Los errores y advertencias son texto normal más un icono lucide o un borde neutro discontinuo (`line-strong`, 1.5px dashed). Nunca ámbar ni rojo: el ámbar es selección y el rojo es daño.", "section": "colors" },
+      { "name": "The Mono Es Dato Rule", "body": "JetBrains Mono solo para lo que escupe la máquina: registro, frames, dirección del servidor, comandos. Nunca para rótulos ni títulos.", "section": "typography" },
+      { "name": "The Rótulo Condensado Rule", "body": "Todo rótulo, pestaña, opción y botón va en Saira Condensed en mayúsculas con tracking 0.04-0.08em; el texto en minúscula es siempre Saira Variable.", "section": "typography" },
+      { "name": "The Suelo De Escenario Rule", "body": "El fondo lleva una rejilla de 48px con líneas al 3,5 % (`rgb(242 242 255 / 0.035)`), fija al viewport. Es deliberada: es el suelo de la sala de práctica. No subirla de opacidad ni sustituirla por degradados.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** usar ámbar solo para la opción elegida, el valor activo, lo pendiente, el cursor del menú, el foco y el golpe que conecta.",
+      "**Do** reservar el rojo para el daño realmente recibido (knockbacks > 0, casillas de golpe recibido, rastro de vida).",
+      "**Do** marcar bloqueos con barra discontinua y explicar el motivo en la pista de la fila.",
+      "**Do** mostrar errores y advertencias como texto normal más un icono lucide o un borde neutro discontinuo.",
+      "**Do** inclinar barras, cursores y sellos a -12deg con la variable `--slant`.",
+      "**Do** usar iconos de lucide-react (14-16px, trazo 2.25) junto a texto.",
+      "**Do** enmascarar la clave del panel en el registro visible (`?t=••••`) y tratar la contraseña del bot como solo escritura.",
+      "**Do** escribir toda la interfaz en español."
+    ],
+    "donts": [
+      "**Don't** usar ámbar ni rojo para errores o advertencias.",
+      "**Don't** tachar opciones bloqueadas: no han desaparecido, solo esperan.",
+      "**Don't** usar glifos unicode como iconos; usa lucide-react.",
+      "**Don't** usar JetBrains Mono fuera de los datos.",
+      "**Don't** añadir glow, degradados de color ni sombras de elevación a los bloques.",
+      "**Don't** pintar de rojo un contador a cero."
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "watita-sparring-bot",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Bot de combate para grabar muestras con el laboratorio de WatitaAC",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "node --test",
+    "arena": "node scripts/arena.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.39.0",
+    "vec3": "^0.1.10"
+  }
+}

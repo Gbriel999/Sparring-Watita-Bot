@@ -1,0 +1,8 @@
+node_modules/
+.auth/
+config.json
+bot.log
+.impeccable/review/
+panel/dist/
+peleas.jsonl
+rivales.json

@@ -1,0 +1,14 @@
+{
+  "host": "ip-de-tu-servidor",
+  "port": 25565,
+  "cuenta": "WatitaBot",
+  "auth": "offline",
+  "version": "1.21.11",
+  "dueno": "TuNombreEnMinecraft",
+  "clave": "",
+  "nivel": "normal",
+  "escudo": true,
+  "avisosPorMensaje": false,
+  "comandosAlEntrar": [],
+  "reconectar": true
+}
